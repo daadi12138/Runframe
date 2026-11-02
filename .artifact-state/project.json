@@ -1,0 +1,99 @@
+{
+  "id": "project-91259bd6-cef8-477c-89ac-a6ee8e71a68d",
+  "name": "Artifact",
+  "repositoryPath": "/app/applet",
+  "gitRoot": "/app/applet",
+  "status": "ready",
+  "environment": {
+    "version": 1,
+    "detectedStack": [
+      {
+        "category": "vcs",
+        "name": "Git",
+        "evidence": [
+          ".git"
+        ]
+      },
+      {
+        "category": "runtime",
+        "name": "Node.js",
+        "evidence": [
+          "package.json"
+        ]
+      },
+      {
+        "category": "framework",
+        "name": "Next.js",
+        "version": "^15.5.23",
+        "evidence": [
+          "package.json#dependencies.next"
+        ]
+      },
+      {
+        "category": "language",
+        "name": "TypeScript",
+        "version": "^5.9.3",
+        "evidence": [
+          "package.json#devDependencies.typescript"
+        ]
+      }
+    ],
+    "workspaceRoots": [
+      {
+        "path": ".",
+        "ecosystem": "node",
+        "manager": "npm",
+        "evidence": [
+          "package.json"
+        ]
+      }
+    ],
+    "commands": {
+      "install": {
+        "command": "npm install",
+        "cwd": ".",
+        "timeoutMs": 600000,
+        "workspaceRoot": ".",
+        "evidence": [
+          "package.json",
+          "no lockfile"
+        ]
+      },
+      "build": {
+        "command": "npm run build",
+        "cwd": ".",
+        "timeoutMs": 600000,
+        "workspaceRoot": ".",
+        "evidence": [
+          "package.json",
+          "package.json#scripts.build"
+        ]
+      },
+      "typecheck": {
+        "command": "npm run typecheck",
+        "cwd": ".",
+        "timeoutMs": 600000,
+        "workspaceRoot": ".",
+        "evidence": [
+          "package.json",
+          "package.json#scripts.typecheck"
+        ]
+      },
+      "lint": {
+        "command": "npm run lint",
+        "cwd": ".",
+        "timeoutMs": 600000,
+        "workspaceRoot": ".",
+        "evidence": [
+          "package.json",
+          "package.json#scripts.lint"
+        ]
+      }
+    },
+    "commandAllowlist": {},
+    "confirmedByUser": true,
+    "confirmedAt": "2026-11-02T07:23:07.919Z"
+  },
+  "createdAt": "2026-11-02T07:23:07.919Z",
+  "updatedAt": "2026-11-02T07:23:07.919Z"
+}

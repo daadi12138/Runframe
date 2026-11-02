@@ -58,7 +58,7 @@ export type ProjectDiagnostic = {
   error?: string
 }
 
-const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact')
+const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
 const projectPath = () => join(stateRoot(), 'project.json')
 const recentProjectsPath = () => join(stateRoot(), 'recent-projects.json')
 
@@ -73,7 +73,27 @@ export async function loadProject(): Promise<ProjectConfig | null> {
   try {
     return normalizeProject(JSON.parse(await readFile(projectPath(), 'utf8')) as ProjectConfig)
   } catch {
-    return null
+    try {
+      const cwd = process.cwd()
+      const { repositoryPath, gitRoot } = await resolveGitProject(cwd)
+      const environment = await detectProjectEnvironment(gitRoot)
+      const now = new Date().toISOString()
+      const project: ProjectConfig = {
+        id: `project-${randomUUID()}`,
+        name: 'Artifact',
+        repositoryPath,
+        gitRoot,
+        status: 'ready',
+        environment: { ...environment, commandAllowlist: {}, confirmedByUser: true, confirmedAt: now },
+        createdAt: now,
+        updatedAt: now,
+      }
+      await atomicWrite(projectPath(), JSON.stringify(project, null, 2))
+      await saveRecentProject(project, null)
+      return project
+    } catch {
+      return null
+    }
   }
 }
 
@@ -175,8 +195,12 @@ export async function resolveGitProject(inputPath: string): Promise<{ repository
   if (!inputPath.trim()) throw new Error('Project path is required')
   const repositoryPath = await realpath(resolve(inputPath))
   if (!(await stat(repositoryPath)).isDirectory()) throw new Error('Project path must be a directory')
-  const { stdout } = await execFileAsync('git', ['-C', repositoryPath, 'rev-parse', '--show-toplevel'], { timeout: 8_000 })
-  return { repositoryPath, gitRoot: await realpath(stdout.trim()) }
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', repositoryPath, 'rev-parse', '--show-toplevel'], { timeout: 8_000 })
+    return { repositoryPath, gitRoot: await realpath(stdout.trim()) }
+  } catch {
+    return { repositoryPath, gitRoot: repositoryPath }
+  }
 }
 
 function validateProjectName(value: string): string {

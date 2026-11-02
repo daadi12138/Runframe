@@ -2,7 +2,7 @@ import { lstat, readFile, realpath } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { RunSnapshot } from './run-manager'
 
-export async function managedRunWorktree(id: string, projectRoot?: string, stateDirectory = process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact')) {
+export async function managedRunWorktree(id: string, projectRoot?: string, stateDirectory = process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')) {
   if (!/^run-[a-zA-Z0-9-]+$/.test(id)) throw new Error('无效的 Run ID')
   const run = JSON.parse(await readFile(join(stateDirectory, 'runs', id, 'manifest.json'), 'utf8')) as RunSnapshot
   const expected = resolve(stateDirectory, 'worktrees', id)
@@ -14,7 +14,7 @@ export async function managedRunWorktree(id: string, projectRoot?: string, state
 }
 
 export async function managedTerminalDirectory(requestedPath: string, projectRoot: string, stateDirectory?: string) {
-  const root = resolve(stateDirectory || process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact'), 'worktrees')
+  const root = resolve(stateDirectory || process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state'), 'worktrees')
   const requested = resolve(requestedPath)
   const id = requested.slice(root.length + 1)
   if (requested !== join(root, id) || !/^run-[a-zA-Z0-9-]+$/.test(id)) throw new Error('终端工作目录必须位于当前项目或其托管 Worktree 中')

@@ -5,7 +5,7 @@ import { promisify } from 'node:util'
 import type { RunSnapshot, RunStatus } from './run-manager'
 
 const execFileAsync = promisify(execFile)
-const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact')
+const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
 const runsRoot = () => join(stateRoot(), 'runs')
 const worktreesRoot = () => join(stateRoot(), 'worktrees')
 const retainedArtifactsRoot = () => join(stateRoot(), 'retained-artifacts')

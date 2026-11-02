@@ -72,7 +72,7 @@ export type WorkflowTemplate = {
   definition: Omit<WorkflowCanvasDefinition, 'updatedAt'>
 }
 
-const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact')
+const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
 const definitionPath = () => join(stateRoot(), 'workflow.json')
 const libraryPath = () => join(stateRoot(), 'workflows.json')
 const now = () => new Date().toISOString()

@@ -620,26 +620,38 @@ function BrowserWorkbench({ active }: { active: boolean }) {
 
   const navigate = async (event: FormEvent) => {
     event.preventDefault()
+    if (!address.trim()) return
     const desktop = window.artifactDesktop
-    if (!desktop || !address.trim()) return
-    setActionError(null)
-    try {
-      const next = await desktop.navigateBrowser(address)
-      applyState(next)
-      window.requestAnimationFrame(syncBounds)
-    } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '无法打开网页。')
+    if (desktop) {
+      setActionError(null)
+      try {
+        const next = await desktop.navigateBrowser(address)
+        applyState(next)
+        window.requestAnimationFrame(syncBounds)
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : '无法打开网页。')
+      }
+    } else {
+      let target = address.trim()
+      if (!/^https?:\/\//i.test(target)) target = `https://${target}`
+      setState(prev => ({ ...prev, url: target, title: target, loading: false, error: null }))
+      setAddress(target)
     }
   }
 
   const runAction = async (action: 'back' | 'forward' | 'reload' | 'stop') => {
     const desktop = window.artifactDesktop
-    if (!desktop) return
-    try {
-      const next = action === 'back' ? await desktop.browserBack() : action === 'forward' ? await desktop.browserForward() : action === 'stop' ? await desktop.browserStop() : await desktop.browserReload()
-      applyState(next)
-    } catch (caught) {
-      setActionError(caught instanceof Error ? caught.message : '浏览器操作失败。')
+    if (desktop) {
+      try {
+        const next = action === 'back' ? await desktop.browserBack() : action === 'forward' ? await desktop.browserForward() : action === 'stop' ? await desktop.browserStop() : await desktop.browserReload()
+        applyState(next)
+      } catch (caught) {
+        setActionError(caught instanceof Error ? caught.message : '浏览器操作失败。')
+      }
+    } else if (action === 'reload' && state.url) {
+      const current = state.url
+      setState(prev => ({ ...prev, url: '' }))
+      setTimeout(() => setState(prev => ({ ...prev, url: current })), 50)
     }
   }
 
@@ -649,17 +661,25 @@ function BrowserWorkbench({ active }: { active: boolean }) {
   return <div className="browser-shell">
     <header className="browser-toolbar">
       <div className="browser-navigation">
-        <button type="button" disabled={!state.canGoBack} onClick={() => void runAction('back')} title="后退" aria-label="后退"><ArrowLeft aria-hidden="true" /></button>
+        <button type="button" disabled={!state.canGoBack && !state.url} onClick={() => void runAction('back')} title="后退" aria-label="后退"><ArrowLeft aria-hidden="true" /></button>
         <button type="button" disabled={!state.canGoForward} onClick={() => void runAction('forward')} title="前进" aria-label="前进"><ArrowRight aria-hidden="true" /></button>
         <button type="button" disabled={!state.url} onClick={() => void runAction(state.loading ? 'stop' : 'reload')} title={state.loading ? '停止加载' : '重新加载'} aria-label={state.loading ? '停止加载' : '重新加载'}>{state.loading ? <StopCircle aria-hidden="true" /> : <RotateCw aria-hidden="true" />}</button>
       </div>
-      <form className="browser-address" onSubmit={event => void navigate(event)}><Shield aria-hidden="true" /><input value={address} onChange={event => setAddress(event.target.value)} onFocus={() => { addressFocusedRef.current = true }} onBlur={() => { addressFocusedRef.current = false }} placeholder="输入网址" aria-label="网页地址" autoCapitalize="off" autoCorrect="off" spellCheck={false} /></form>
-      <button className="browser-external" type="button" disabled={!state.url || !desktopAvailable} onClick={() => void window.artifactDesktop?.openBrowserExternal()} title="在系统浏览器中打开" aria-label="在系统浏览器中打开"><ExternalLink aria-hidden="true" /></button>
+      <form className="browser-address" onSubmit={event => void navigate(event)}><Shield aria-hidden="true" /><input value={address} onChange={event => setAddress(event.target.value)} onFocus={() => { addressFocusedRef.current = true }} onBlur={() => { addressFocusedRef.current = false }} placeholder="输入网址 (如 https://...)" aria-label="网页地址" autoCapitalize="off" autoCorrect="off" spellCheck={false} /></form>
+      <button className="browser-external" type="button" disabled={!state.url} onClick={() => { if (state.url) window.open(state.url, '_blank') }} title="在新窗口中打开" aria-label="在新窗口中打开"><ExternalLink aria-hidden="true" /></button>
     </header>
-    <div className="browser-page-meta"><b title={state.title || '新标签页'}>{state.title || '新标签页'}</b><span>{state.loading ? '正在加载' : browserHost}</span></div>
+    <div className="browser-page-meta"><b title={state.title || '网页预览'}>{state.title || '网页预览'}</b><span>{state.loading ? '正在加载' : browserHost}</span></div>
     <div className="browser-viewport" ref={viewportRef}>
-      {!state.url && <div className="browser-start"><Globe2 aria-hidden="true" /><b>新标签页</b><span>在地址栏输入 HTTP 或 HTTPS 地址。</span></div>}
-      {environmentChecked && !desktopAvailable && <div className="desktop-only-placeholder"><Globe2 aria-hidden="true" /><b>内置浏览器仅在桌面应用中可用</b><span>桌面版使用隔离会话加载网页。</span></div>}
+      {state.url ? (
+        <iframe
+          src={state.url}
+          title={state.title || '网页预览'}
+          style={{ width: '100%', height: '100%', border: 'none', background: '#ffffff' }}
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+        />
+      ) : (
+        <div className="browser-start"><Globe2 aria-hidden="true" /><b>Web 浏览器预览</b><span>在地址栏输入 HTTP 或 HTTPS 网址进行实时预览。</span></div>
+      )}
     </div>
     {actionError && <div className="browser-error" role="alert">{actionError}</div>}
   </div>

@@ -161,7 +161,7 @@ function npmInstallPlan(packageName: string): ExecutorInstallPlan {
   }
 }
 
-function configPath(): string { return join(process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact'), 'executors.json') }
+function configPath(): string { return join(process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state'), 'executors.json') }
 
 export async function loadExecutorConfigs(): Promise<ExecutorConfig[]> {
   try {

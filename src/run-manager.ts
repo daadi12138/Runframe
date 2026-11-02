@@ -69,7 +69,7 @@ type AgentRunner = (input: { prompt: string; cwd: string; writable: boolean; exe
 type AgentAdapter = { id: string; run: AgentRunner }
 type RunProcessOptions = { stdin?: string; env?: NodeJS.ProcessEnv; maxLineLength?: number; onStdoutLine?: (line: string) => void | Promise<void>; onSpawn?: (process: NonNullable<StepAttempt['process']>) => void | Promise<void> }
 
-const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact')
+const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
 const artifactRoot = () => join(stateRoot(), 'runs')
 const worktreeRoot = () => join(stateRoot(), 'worktrees')
 const runDirectory = (id: string) => join(artifactRoot(), id)
