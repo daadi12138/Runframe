@@ -1,0 +1,8 @@
+{
+  "name": "Artifact",
+  "description": "Artifact-driven agent workflows with versioned artifacts and approval gates",
+  "prompt": "Local-first coding-agent workflow console with versioned artifacts and approval gates",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

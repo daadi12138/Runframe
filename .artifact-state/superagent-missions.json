@@ -1,0 +1,164 @@
+[
+  {
+    "id": "mission-0fbbdc4c",
+    "goal": "增加暗黑主题切换并编写单元测试",
+    "mode": "autonomous",
+    "status": "executing",
+    "tickets": [
+      {
+        "id": "ticket-725bf5",
+        "title": "上下文与架构分析",
+        "description": "Router Agent 深入解析目标需求「增加暗黑主题切换并编写单元测试」，定位代码库中的关联模块与依赖影响面。",
+        "stage": "planning",
+        "workerRole": "router",
+        "executorId": "codex",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [],
+        "acceptanceCriteria": [
+          "输出需求规格说明书与受影响文件列表",
+          "确定修改边界与风险项"
+        ],
+        "executionMode": "read_only",
+        "progress": 40,
+        "activeToolCall": {
+          "tool": "build_repo_map",
+          "argument": "增加暗黑主题切换并编写单元测试",
+          "startedAt": "2026-11-02T06:27:28.021Z"
+        },
+        "deliverables": [
+          {
+            "id": "spec-1",
+            "name": "需求与影响面评估报告",
+            "type": "ui-spec",
+            "summary": "已提取受影响文件与测试范围"
+          }
+        ],
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      },
+      {
+        "id": "ticket-9fd86f",
+        "title": "接口定义与核心实现方案",
+        "description": "Architect Agent 制定细化实施方案，包含关键数据结构、状态设计与向下兼容策略。",
+        "stage": "in_progress",
+        "workerRole": "architect",
+        "executorId": "codex",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [
+          "ticket-1"
+        ],
+        "acceptanceCriteria": [
+          "模块输入输出接口明确",
+          "无破坏性非受控变更"
+        ],
+        "executionMode": "read_only",
+        "progress": 25,
+        "activeToolCall": {
+          "tool": "analyze_architecture",
+          "argument": "package.json, README.md, tsconfig.json, src/app/api/runs/[id]/events/route.test.ts, src/executor-config.test.ts, src/intelligent-orchestration.test.ts, src/permission-policy.test.ts, src/project-files.test.ts",
+          "startedAt": "2026-11-02T06:27:28.021Z"
+        },
+        "deliverables": [
+          {
+            "id": "spec-2",
+            "name": "架构规格方案",
+            "type": "approved-spec"
+          }
+        ],
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      },
+      {
+        "id": "ticket-49b954",
+        "title": "执行方案与安全准入审批",
+        "description": "审批关卡：确认 Agent 规划的改动边界、Worktree 分支及命令授权清单。",
+        "stage": "backlog",
+        "workerRole": "security",
+        "executorId": "system",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [
+          "ticket-2"
+        ],
+        "acceptanceCriteria": [
+          "确认允许写入 Worktree",
+          "确认测试命令执行清单"
+        ],
+        "executionMode": "read_only",
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      },
+      {
+        "id": "ticket-05bb73",
+        "title": "核心功能编码与逻辑集成",
+        "description": "Coding Agent 在隔离分支 agent/feat-a7eb71 中编写代码，严格遵循项目规范与防 AI Slop 纪律。",
+        "stage": "backlog",
+        "workerRole": "coder",
+        "executorId": "codex",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [
+          "ticket-3"
+        ],
+        "acceptanceCriteria": [
+          "代码改动聚焦且无冗余修改",
+          "符合现有代码风格与 TypeScript 严格模式"
+        ],
+        "executionMode": "workspace_write",
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      },
+      {
+        "id": "ticket-662ee0",
+        "title": "自动化验证与回归测试",
+        "description": "Validator Agent 在 Worktree 环境中自动执行类型检查、单元测试及 Lint 校验。",
+        "stage": "backlog",
+        "workerRole": "validator",
+        "executorId": "codex",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [
+          "ticket-4"
+        ],
+        "acceptanceCriteria": [
+          "TypeScript 类型检查通过",
+          "核心测试用例 100% 通过"
+        ],
+        "executionMode": "read_only",
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      },
+      {
+        "id": "ticket-e54bc5",
+        "title": "代码审查与最终交付",
+        "description": "Reviewer Agent 生成 Git Diff 报告，汇总交付变更，等待合并到主项目。",
+        "stage": "backlog",
+        "workerRole": "reviewer",
+        "executorId": "codex",
+        "branch": "agent/feat-a7eb71",
+        "dependencies": [
+          "ticket-5"
+        ],
+        "acceptanceCriteria": [
+          "Git Diff 无冲突",
+          "产出最终交付总结与变更日志"
+        ],
+        "executionMode": "read_only",
+        "createdAt": "2026-11-02T06:27:28.021Z",
+        "updatedAt": "2026-11-02T06:27:28.021Z"
+      }
+    ],
+    "repoSummary": {
+      "fileCount": 70,
+      "keyFiles": [
+        "package.json",
+        "README.md",
+        "tsconfig.json",
+        "src/app/api/runs/[id]/events/route.test.ts",
+        "src/executor-config.test.ts",
+        "src/intelligent-orchestration.test.ts",
+        "src/permission-policy.test.ts",
+        "src/project-files.test.ts"
+      ]
+    },
+    "createdAt": "2026-11-02T06:27:28.021Z",
+    "updatedAt": "2026-11-02T06:27:28.021Z"
+  }
+]
