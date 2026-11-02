@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { appendFile, mkdir, realpath } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { delimiter, dirname, join, resolve, sep } from 'node:path'
@@ -56,7 +56,10 @@ app.on('before-quit', () => {
 
 if (singleInstance) {
   void app.whenReady().then(async () => {
-    if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(join(__dirname, '..', '..', 'build', 'icon.png'))
+    if (process.platform === 'darwin' && !app.isPackaged) {
+      const dockIconPath = join(__dirname, '..', '..', 'src', 'app', 'icon.png')
+      if (existsSync(dockIconPath)) app.dock?.setIcon(dockIconPath)
+    }
     registerDesktopHandlers()
     if (pendingProjectPath) {
       await openProject(pendingProjectPath, false)
