@@ -202,7 +202,7 @@ export default function HomePage() {
     <div className="app-shell" data-theme={resolvedTheme} data-theme-preference={theme}>
       <aside className="activity-bar" aria-label="应用功能导航">
         <div className="activity-brand" title="Artifact">
-          <img src={artifactLogo.src} alt="Artifact Logo" className="brand-logo" />
+          <img src={artifactLogo.src} alt="Artifact Logo" className="brand-logo brand-mark" width={28} height={28} />
         </div>
         <nav className="activity-nav" aria-label="主要视图">
           {navItems.map(item => {

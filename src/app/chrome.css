@@ -34,10 +34,15 @@
   border-bottom: 1px solid #e1e3e7;
 }
 
-.activity-brand .brand-mark {
-  width: 27px;
-  height: 27px;
+.activity-brand .brand-mark,
+.activity-brand .brand-logo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   border-radius: 7px;
+  object-fit: contain;
 }
 
 .activity-nav,

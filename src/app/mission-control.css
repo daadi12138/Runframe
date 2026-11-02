@@ -335,14 +335,17 @@ button > svg {
   border-bottom-color: var(--border);
 }
 
-.activity-brand .brand-mark {
+.activity-brand .brand-mark,
+.activity-brand .brand-logo {
   display: block;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
-  object-fit: cover;
+  object-fit: contain;
   box-shadow: 0 2px 6px rgb(0 0 0 / 32%);
   user-select: none;
 }
