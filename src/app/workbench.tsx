@@ -666,7 +666,11 @@ function BrowserWorkbench({ active }: { active: boolean }) {
         <button type="button" disabled={!state.url} onClick={() => void runAction(state.loading ? 'stop' : 'reload')} title={state.loading ? '停止加载' : '重新加载'} aria-label={state.loading ? '停止加载' : '重新加载'}>{state.loading ? <StopCircle aria-hidden="true" /> : <RotateCw aria-hidden="true" />}</button>
       </div>
       <form className="browser-address" onSubmit={event => void navigate(event)}><Shield aria-hidden="true" /><input value={address} onChange={event => setAddress(event.target.value)} onFocus={() => { addressFocusedRef.current = true }} onBlur={() => { addressFocusedRef.current = false }} placeholder="输入网址 (如 https://...)" aria-label="网页地址" autoCapitalize="off" autoCorrect="off" spellCheck={false} /></form>
-      <button className="browser-external" type="button" disabled={!state.url} onClick={() => { if (state.url) window.open(state.url, '_blank') }} title="在新窗口中打开" aria-label="在新窗口中打开"><ExternalLink aria-hidden="true" /></button>
+      {state.url ? (
+        <a className="browser-external header-icon-button" href={state.url} target="_blank" rel="noopener noreferrer" title="在新窗口中打开" aria-label="在新窗口中打开"><ExternalLink aria-hidden="true" /></a>
+      ) : (
+        <button className="browser-external" type="button" disabled title="在新窗口中打开" aria-label="在新窗口中打开"><ExternalLink aria-hidden="true" /></button>
+      )}
     </header>
     <div className="browser-page-meta"><b title={state.title || '网页预览'}>{state.title || '网页预览'}</b><span>{state.loading ? '正在加载' : browserHost}</span></div>
     <div className="browser-viewport" ref={viewportRef}>

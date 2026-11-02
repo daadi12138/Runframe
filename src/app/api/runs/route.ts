@@ -25,7 +25,13 @@ const runInputSchema = z.object({
 const workflowReferenceSchema = z.object({ workflowId: z.string().trim().min(1).max(160), revision: z.number().int().positive() }).partial()
 
 export async function GET() {
-  return Response.json(await listRuns())
+  try {
+    const runs = await listRuns()
+    return Response.json(runs)
+  } catch (error) {
+    console.error('Error in GET /api/runs:', error)
+    return Response.json([], { status: 200 })
+  }
 }
 
 export async function POST(request: Request) {
