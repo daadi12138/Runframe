@@ -29,10 +29,14 @@ export class ApprovalService {
     return approval
   }
 
-  async isGranted(scope: ApprovalScope): Promise<boolean> {
+  async latestDecision(scope: ApprovalScope): Promise<Approval | null> {
     const matching = (await this.repository.list(scope.workspaceRoot))
       .filter(approval => sameScope(approval.scope, scope))
       .sort((left, right) => right.decidedAt.localeCompare(left.decidedAt) || right.id.localeCompare(left.id))
-    return matching[0]?.decision === 'granted'
+    return matching[0] ?? null
+  }
+
+  async isGranted(scope: ApprovalScope): Promise<boolean> {
+    return (await this.latestDecision(scope))?.decision === 'granted'
   }
 }
