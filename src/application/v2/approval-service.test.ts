@@ -29,10 +29,9 @@ test('grants only an exact scope and never broadens an approval', async () => {
 test('a later denial supersedes an earlier grant without mutating either record', async () => {
   const repository = new MemoryApprovalRepository()
   let id = 0
-  let timestamp = 0
   const service = new ApprovalService(
     repository,
-    () => new Date(Date.UTC(2026, 0, 1, 0, 0, timestamp++)),
+    () => new Date('2026-01-01T00:00:00.000Z'),
     () => `approval-${++id}`,
   )
   const scope = { action: 'git.push', workspaceRoot: '/workspace/project' }
