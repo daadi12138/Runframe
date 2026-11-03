@@ -26,10 +26,20 @@ test('grants only an exact scope and never broadens an approval', async () => {
   assert.equal(await service.isGranted({ ...scope, inputDigest: 'sha256:changed' }), false)
 })
 
-test('a denied decision does not authorize an action', async () => {
+test('a later denial supersedes an earlier grant without mutating either record', async () => {
   const repository = new MemoryApprovalRepository()
-  const service = new ApprovalService(repository, () => new Date(), () => 'approval-denied')
+  let id = 0
+  let timestamp = 0
+  const service = new ApprovalService(
+    repository,
+    () => new Date(Date.UTC(2026, 0, 1, 0, 0, timestamp++)),
+    () => `approval-${++id}`,
+  )
   const scope = { action: 'git.push', workspaceRoot: '/workspace/project' }
-  await service.decide(scope, 'denied')
+  const grant = await service.decide(scope, 'granted')
+  assert.equal(await service.isGranted(scope), true)
+  const denial = await service.decide(scope, 'denied')
   assert.equal(await service.isGranted(scope), false)
+  assert.equal((await repository.get(grant.id))?.decision, 'granted')
+  assert.equal((await repository.get(denial.id))?.decision, 'denied')
 })
