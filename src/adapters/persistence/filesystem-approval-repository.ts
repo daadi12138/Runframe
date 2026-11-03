@@ -32,9 +32,9 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
       throw error
     }
     const records = await Promise.all(files.filter(file => file.endsWith('.json')).map(async file => {
-      try { return JSON.parse(await readFile(join(directory, file), 'utf8')) as Approval } catch { return null }
+      return JSON.parse(await readFile(join(directory, file), 'utf8')) as Approval
     }))
-    return records.filter((record): record is Approval => record !== null)
+    return records
       .filter(record => workspaceRoot === undefined || record.scope.workspaceRoot === workspaceRoot)
       .sort((left, right) => left.decidedAt.localeCompare(right.decidedAt))
   }
