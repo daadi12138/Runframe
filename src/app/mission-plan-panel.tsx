@@ -68,10 +68,10 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
     const loadStatus = async () => {
       try {
         const response = await fetch(`/api/runs/${encodeURIComponent(selectedMission.activeRunId!)}`)
-        const run = response.ok ? await response.json() as { status: string; logs?: string[]; deliveryApproval?: unknown } : null
+        const run = response.ok ? await response.json() as { status: string; deliveryApproval?: unknown; deliveryReceipt?: { status: 'approved' | 'no_changes' } } : null
         if (!cancelled) {
           setLinkedRunStatus(run?.status ?? null)
-          setDeliveryApproved(Boolean(run && run.status === 'succeeded' && !run.deliveryApproval && run.logs?.some(log => log.includes('交付已批准') || log.includes('未检测到文件变更'))))
+          setDeliveryApproved(Boolean(run && run.status === 'succeeded' && !run.deliveryApproval && run.deliveryReceipt && ['approved', 'no_changes'].includes(run.deliveryReceipt.status)))
         }
       } catch {
         if (!cancelled) setLinkedRunStatus(null)
