@@ -12,6 +12,8 @@ test('allows the documented mission lifecycle and rejects terminal transitions',
 test('enforces task and attempt transitions', () => {
   assert.equal(transitionTask('ready', 'running'), 'running')
   assert.equal(transitionAttempt('starting', 'interrupted'), 'interrupted')
+  assert.equal(transitionAttempt('running', 'paused'), 'paused')
+  assert.equal(transitionAttempt('paused', 'running'), 'running')
   assert.throws(() => transitionTask('succeeded', 'ready'), /Invalid task transition/)
   assert.throws(() => transitionAttempt('succeeded', 'running'), /Invalid attempt transition/)
 })
