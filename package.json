@@ -28,7 +28,7 @@
     "package:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir zip --arm64",
     "dist:dmg": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --prepackaged release/mac-arm64/Artifact.app",
     "dist:all:clean": "npm run clean && npm run dist:mac && npm run dist:dmg",
-    "test": "tsx --test src/domain/v2/*.test.ts src/adapters/persistence/*.test.ts"
+    "test": "tsx --test src/domain/v2/*.test.ts src/application/v2/*.test.ts src/adapters/persistence/*.test.ts"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
