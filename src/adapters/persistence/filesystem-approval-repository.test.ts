@@ -21,6 +21,7 @@ test('stores approval decisions as immutable, workspace-scoped records', async (
     assert.deepEqual(await repository.list('/workspace/a'), [approval])
     assert.deepEqual(await repository.list('/workspace/b'), [])
     await assert.rejects(() => repository.create({ ...approval, decision: 'denied' }), /EEXIST/)
+    await assert.rejects(() => repository.create({ ...approval, id: 'approval-invalid', decision: 'unknown' as 'granted' }), /granted or denied/)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
