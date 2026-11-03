@@ -1,7 +1,9 @@
 import { execFile } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
+import { createDefaultApprovalRepository } from './adapters/persistence/filesystem-approval-repository'
+import { ApprovalService } from './application/v2/approval-service'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -135,6 +137,38 @@ export function isProjectCommandApproved(project: Pick<ProjectConfig, 'environme
   return Boolean(approval && sameCommandSpec(approval, command))
 }
 
+function projectCommandApprovalScope(project: ProjectConfig, key: ProjectCommandKey, command: CommandSpec) {
+  const inputDigest = createHash('sha256').update(JSON.stringify({
+    command: command.command,
+    cwd: command.cwd,
+    timeoutMs: command.timeoutMs,
+    workspaceRoot: command.workspaceRoot ?? null,
+  })).digest('hex')
+  return {
+    action: `project.validation.${key}`,
+    workspaceRoot: project.repositoryPath,
+    command: command.command,
+    inputDigest,
+  }
+}
+
+export async function isProjectCommandApprovedWithAudit(
+  project: ProjectConfig,
+  key: ProjectCommandKey,
+  command: CommandSpec,
+): Promise<boolean> {
+  if (!isProjectCommandApproved(project, key, command)) return false
+  const approvals = new ApprovalService(createDefaultApprovalRepository())
+  const scope = projectCommandApprovalScope(project, key, command)
+  const latest = await approvals.latestDecision(scope)
+  // Migrate pre-V2 allowlist approvals without broadening their original scope.
+  if (!latest) {
+    await approvals.decide(scope, 'granted')
+    return true
+  }
+  return latest.decision === 'granted'
+}
+
 export async function approveProjectCommand(key: ProjectCommandKey, expectedCommand?: CommandSpec): Promise<ProjectConfig> {
   const project = await loadProject()
   if (!project) throw new Error('Import a Git project first')
@@ -142,6 +176,7 @@ export async function approveProjectCommand(key: ProjectCommandKey, expectedComm
   if (!command) throw new Error(`No detected ${key} command is available for this project`)
   if (expectedCommand && !sameCommandSpec(command, expectedCommand)) throw new Error('The detected command changed. Start the run again to review the current command.')
   const now = new Date().toISOString()
+  await new ApprovalService(createDefaultApprovalRepository()).decide(projectCommandApprovalScope(project, key, command), 'granted')
   project.environment = {
     ...project.environment,
     version: project.environment.version + 1,
@@ -159,6 +194,10 @@ export async function revokeProjectCommand(key: ProjectCommandKey): Promise<Proj
   const project = await loadProject()
   if (!project) throw new Error('Import a Git project first')
   if (!project.environment.commandAllowlist[key]) return project
+  const approvedCommand = project.environment.commands[key]
+  if (approvedCommand) {
+    await new ApprovalService(createDefaultApprovalRepository()).decide(projectCommandApprovalScope(project, key, approvedCommand), 'denied')
+  }
   const now = new Date().toISOString()
   const commandAllowlist = { ...project.environment.commandAllowlist }
   delete commandAllowlist[key]
