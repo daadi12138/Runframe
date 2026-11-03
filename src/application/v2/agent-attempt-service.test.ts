@@ -36,6 +36,17 @@ test('fails clearly when a runtime does not declare cancellation support', async
   await assert.rejects(service.cancel('readonly', 's'), /does not support capability "cancellation"/)
 })
 
+test('rejects a runtime that declares cancellation without implementing it', async () => {
+  const runtime = {
+    id: 'broken',
+    capabilities: { streamingOutput: true, structuredEvents: false, cancellation: true, pause: false, resume: false, attach: false, usageReporting: false },
+    async launch() { return { sessionId: 's' } },
+    async *output() {},
+  }
+  const service = new AgentAttemptService(() => runtime)
+  await assert.rejects(service.cancel('broken', 's'), /declares "cancellation" but does not implement/)
+})
+
 test('rejects structured events from runtimes that did not declare the capability', async () => {
   const runtime = new OneShotCliAgentRuntime('bad-runtime', async request => ({ output: request.prompt }), async () => undefined)
   const unsafe = {
