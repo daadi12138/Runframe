@@ -190,6 +190,7 @@ export { getReadyTaskIds, validatePlanGraph, type GraphValidation } from '../dom
 export { validateProcessTree, type ProcessTreeValidation } from '../domain/v2/process-tree'
 export { projectProcessTree } from '../application/v2/process-tree-projection'
 export { AgentRuntimeRegistry } from '../adapters/agent-runtime/registry'
+export { OneShotCliAgentRuntime } from '../adapters/agent-runtime/one-shot-cli-runtime'
 export { AgentRunnerRegistry, type AgentRunnerRegistration } from '../adapters/agent-runtime/runner-registry'
 export { assertRuntimeCapability, type AgentLaunchRequest, type AgentOutputEvent, type AgentRuntime, type AgentSessionHandle } from '../ports/v2/agent-runtime'
 export type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../ports/v2/event-store'
