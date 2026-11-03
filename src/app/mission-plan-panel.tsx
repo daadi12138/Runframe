@@ -82,6 +82,21 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [selectedMission?.activeRunId])
 
+  const cancelMission = async () => {
+    if (!selectedId || !window.confirm('取消此 Mission？如关联 Run 仍在执行或等待审批，也会一并取消。')) return
+    setBusy(true); setError(null)
+    try {
+      const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '取消 Mission 失败')
+      await refreshMissions()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { setBusy(false) }
+  }
+
   const requestDeliveryReview = async () => {
     if (!selectedId) return
     setBusy(true); setError(null)
@@ -218,6 +233,9 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               <div style={{ marginTop: 4 }}>验收标准：{selectedMission.acceptanceCriteria?.length ?? 0} 项</div>
               <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>ID：{selectedMission.id}</div>
               {selectedMission.activeRunId && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>Run：{selectedMission.activeRunId}</div>}
+              {(selectedMission.status === 'running' || selectedMission.status === 'review') && (
+                <button style={{ ...buttonStyle, width: '100%', marginTop: 8, color: 'var(--rose)' }} disabled={busy} onClick={() => void cancelMission()}>取消 Mission</button>
+              )}
               {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && !deliveryApproved && (
                 <button style={{ ...buttonStyle, width: '100%', marginTop: 8 }} disabled={busy} onClick={() => void requestDeliveryReview()}>申请交付审批</button>
               )}
