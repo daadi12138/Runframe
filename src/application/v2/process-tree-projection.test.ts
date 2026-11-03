@@ -64,3 +64,11 @@ test('rejects malformed native session identity and cross-attempt identity facts
     event(2, 'session.output', { id: 's', nativeSessionId: 'native-1', metadataOnly: true }, { attemptId: 'attempt-2' }),
   ]), /Attempt boundaries/)
 })
+
+test('rejects native session identity arriving after session termination', () => {
+  assert.throws(() => projectProcessTree([
+    event(1, 'session.started', { id: 's', kind: 'agent_session' }),
+    event(2, 'session.ended', { id: 's' }),
+    event(3, 'session.output', { id: 's', nativeSessionId: 'native-1', metadataOnly: true }),
+  ]), /after the session ended/)
+})
