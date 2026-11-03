@@ -87,6 +87,7 @@ export {
   type RunInput,
   type RunInputAttachment,
   type RunSnapshot,
+  type MissionRunReference,
   type WorkflowRunReference,
 } from '../run-manager'
 
