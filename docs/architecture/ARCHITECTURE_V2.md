@@ -109,10 +109,10 @@ Recovery invariants:
 - [x] Serialize Mission dispatch requests per Mission within the local application process to prevent duplicate concurrent Runs.
 - [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate; Worktree-only approvals remain scoped to the executing Worktree.
 - [x] Add Mission and Plan REST APIs, a MissionExecutionService use case, and a MissionRunDispatcher port. The LegacyMissionRunDispatcher converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution without putting orchestration logic in the HTTP route.
-- [x] Extract a pure dependency scheduler/resolver and use it from the existing Run orchestration loop.
+- [x] Extract a pure dependency scheduler/resolver and use it from the existing Run orchestration loop; validate scheduler IDs, edge endpoints, duplicate edges, self-edges, and cycles before scheduling.
 - [ ] Extract the policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
-- [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch. The current registry is a contract only; Mission execution still enters the legacy Run Manager and its Codex/Claude adapters.
-- [ ] Keep facade exports stable through `src/core/index.ts`.
+- [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch. The V2 session Runtime registry remains a contract; Mission execution still enters the legacy Run Manager.\n- [x] Replace the ad-hoc Codex/Claude runner Map with an explicit AgentRunnerRegistry used by the concrete legacy execution path. This registry models one-shot CLI invocations and does not claim pause/resume/attach session semantics.
+- [x] Keep V2 domain, scheduler, runtime registry, and runner registry contracts exposed through `src/core/index.ts`.
 - [ ] Add contract tests around legacy Run/Manifest compatibility and migration behavior.
 
 ### Phase 3 — workbench
@@ -121,7 +121,7 @@ Recovery invariants:
 - [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
 - [x] Gate Mission delivery on a persisted Run delivery receipt: a successful Run alone cannot mark a Mission delivered; changed files require Worktree diff approval in the execution timeline, no-change runs record an explicit no-change receipt, and the user then confirms Mission delivery.
 - [x] Add a Run → TaskNode → Attempt → Tool Event execution hierarchy in the Mission Hub.
-- [ ] Extend the hierarchy to nested child-agent sessions and operating-system subprocess trees.
+- [ ] Extend the hierarchy to nested child-agent sessions and operating-system subprocess trees.\n- [x] Add a normalized ProcessTreeNode domain contract and strict parentage/time/run-boundary validator; runtime event projection into this tree remains outstanding.
 - [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
 
@@ -152,4 +152,4 @@ src/
   core/            # stable public facade
 ```
 
-This branch now contains the additive Phase 0 contracts, durable Phase 1 persistence/timeline infrastructure, Mission/Plan/Approval application services, REST APIs, and an integrated Mission planning workspace. Saved plans dispatch through a dedicated compatibility adapter into the existing isolated Run / Worktree engine, with plan provenance and a durable delivery receipt persisted on the Run. Remaining work is intentionally tracked: capability-aware runtime dispatch, scheduler and recovery extraction, nested process/session trees, complete delivery evidence linkage to Plan revisions, and end-to-end migration tests.
+This branch contains additive V2 contracts, durable Phase 1 persistence/timeline infrastructure, Mission/Plan/Approval services, REST APIs, and an integrated Mission planning workspace. Saved plans still dispatch through a compatibility adapter into the legacy isolated Run / Worktree engine. The legacy Codex/Claude one-shot runner selection now uses an explicit capability-declaring AgentRunnerRegistry; this is not yet the session-oriented AgentRuntime port and does not implement attach/resume. The normalized process/session tree contract and validator are in place, but runtime events are not yet projected into that tree. Remaining work includes AgentRuntime-based dispatch, Run Manager decomposition, process-tree projection, complete delivery evidence provenance, and verified integration/CI execution.
