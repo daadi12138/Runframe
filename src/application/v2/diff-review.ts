@@ -11,6 +11,7 @@ export type ValidatedDiffReview = { patch: string; paths: string[]; truncated: b
 
 const DEFAULT_MAX_PATCH_BYTES = 128 * 1024
 const DEFAULT_MAX_PATHS = 500
+const TRUNCATION_MARKER = '\n\n[Diff preview truncated]'
 
 /** Validate untrusted diff metadata before it is rendered in a review surface. */
 export function validateDiffReview(input: DiffReviewInput): ValidatedDiffReview {
@@ -28,22 +29,23 @@ export function validateDiffReview(input: DiffReviewInput): ValidatedDiffReview 
   const paths = input.paths.slice(0, maxPaths).map(validateRelativePath)
   const bytes = Buffer.byteLength(input.patch, 'utf8')
   if (bytes <= maxPatchBytes) return { patch: input.patch, paths, truncated: input.paths.length > maxPaths }
-  const marker = '\\n\\n[Diff preview truncated]'
-  const markerBytes = Buffer.byteLength(marker, 'utf8')
-  const budget = Math.max(0, maxPatchBytes - markerBytes)
+
+  const marker = Buffer.byteLength(TRUNCATION_MARKER, 'utf8') <= maxPatchBytes
+    ? TRUNCATION_MARKER
+    : ''
+  const budget = maxPatchBytes - Buffer.byteLength(marker, 'utf8')
   let patch = input.patch
   while (patch.length > 0 && Buffer.byteLength(patch, 'utf8') > budget) {
     patch = patch.slice(0, Math.max(0, patch.length - Math.max(1, Math.ceil((Buffer.byteLength(patch, 'utf8') - budget) / 2))))
   }
-  const preview = (patch + marker).slice(0, maxPatchBytes)
-  return { patch: preview, paths, truncated: true }
+  return { patch: patch + marker, paths, truncated: true }
 }
 
 export function validateRelativePath(value: string): string {
-  if (typeof value !== 'string' || value.length === 0 || value.length > 4096 || value.includes('\\0')) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 4096 || value.includes('\0')) {
     throw new Error('Diff path is invalid')
   }
-  const normalized = value.replace(/\\\\/g, '/')
+  const normalized = value.replace(/\\/g, '/')
   if (normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized) || normalized.startsWith('//')) {
     throw new Error('Diff path must be workspace-relative')
   }
