@@ -46,7 +46,19 @@ export type RunWorkspaceRun = {
   workflow?: { workflowId: string; workflowName: string; revision: number; publishedAt: string }
   mission?: { missionId: string; missionTitle: string; planRevisionId: string; planRevision: number }
   input: { text: string; attachments: Array<{ id: string; name: string; mediaType: string; byteLength: number }> }
-  nodes: Array<{ id: string; kind: string; state: string; attempts: unknown[] }>
+  nodes: Array<{
+    id: string
+    kind: string
+    state: string
+    attempts: Array<{
+      id: string
+      status: string
+      startedAt: string
+      endedAt?: string
+      process?: { pid: number }
+      trace?: Array<{ seq: number; occurredAt: string; kind: string; toolName?: string; command?: string; content?: string }>
+    }>
+  }>
   edges: Array<{ from: string; to: string }>
   logs: string[]
   events: Array<{ id: string; occurredAt: string; type: string; message: string; details?: Record<string, unknown> }>
@@ -54,7 +66,7 @@ export type RunWorkspaceRun = {
   deliveryApproval?: { requestedAt: string; changedFiles: string[] }
 }
 
-type HubTab = 'kanban' | 'v2-plan' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
+type HubTab = 'kanban' | 'v2-plan' | 'process-tree' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
 type PersistedExecutionEvent = {
   id: string
   sequence: number
@@ -470,6 +482,17 @@ export function MissionHub({
           <button
             type="button"
             role="tab"
+            className={`hub-view-tab ${activeTab === 'process-tree' ? 'active' : ''}`}
+            aria-selected={activeTab === 'process-tree'}
+            onClick={() => setActiveTab('process-tree')}
+          >
+            <Split size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>执行树</strong><small>Process Tree</small></span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
             className={`hub-view-tab ${activeTab === 'timeline' ? 'active' : ''}`}
             aria-selected={activeTab === 'timeline'}
             onClick={() => setActiveTab('timeline')}
@@ -541,6 +564,7 @@ export function MissionHub({
       {/* 4. Tab Content Area */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'v2-plan' && <MissionPlanPanel onRunStarted={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }} />}
+        {activeTab === 'process-tree' && <ExecutionProcessTree run={activeRun} />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1088,5 +1112,57 @@ export function MissionHub({
         </div>
       )}
     </div>
+  )
+}
+
+
+function ExecutionProcessTree({ run }: { run: RunWorkspaceRun | null }) {
+  if (!run) {
+    return <div style={{ flex: 1, padding: 48, textAlign: 'center', color: 'var(--quiet)' }}>选择一个 Run 后查看执行树。</div>
+  }
+  return (
+    <section style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 24 }}>
+      <div style={{ marginBottom: 18 }}>
+        <span className="section-kicker">EXECUTION HIERARCHY</span>
+        <h3 style={{ margin: '6px 0', color: 'var(--ink)', fontSize: 18 }}>Run 执行树</h3>
+        <p style={{ margin: 0, color: 'var(--muted)', fontSize: 12 }}>Run → Task Node → Attempt → Agent Tool Event。计划依赖关系仍由 V2 Plan Graph 单独呈现。</p>
+      </div>
+      <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 9, background: 'var(--surface)', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <strong style={{ color: 'var(--ink)', fontSize: 13 }}>Run {run.id}</strong>
+          <span className={`status-pill ${run.status === 'succeeded' ? 'valid' : run.status === 'failed' ? 'failed' : 'pending'}`}>{run.status}</span>
+        </div>
+        <div style={{ marginTop: 5, color: 'var(--muted)', fontSize: 11 }}>{run.mission?.missionTitle || run.workflow?.workflowName || 'Legacy Run'}{run.mission ? ` · Plan r${run.mission.planRevision}` : ''}</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 16, borderLeft: '1px solid var(--line)' }}>
+        {run.nodes.map(node => (
+          <article key={node.id} style={{ padding: 12, border: '1px solid var(--line)', borderRadius: 8, background: 'var(--surface)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div><strong style={{ fontSize: 12, color: 'var(--ink)' }}>{node.id}</strong><span style={{ marginLeft: 8, fontSize: 10, color: 'var(--muted)' }}>{node.kind}</span></div>
+              <span className={`status-pill ${node.state === 'success' ? 'valid' : node.state === 'failed' ? 'failed' : 'pending'}`}>{node.state}</span>
+            </div>
+            {node.attempts.length ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10, paddingLeft: 14, borderLeft: '1px solid var(--line)' }}>
+                {node.attempts.map(attempt => (
+                  <div key={attempt.id} style={{ padding: 10, borderRadius: 7, background: 'var(--card)', border: '1px solid var(--line)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <span style={{ fontSize: 11, color: 'var(--ink)' }}>Attempt {attempt.id}</span>
+                      <span style={{ fontSize: 10, color: 'var(--muted)' }}>{attempt.status}{attempt.process?.pid ? ` · PID ${attempt.process.pid}` : ''}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--quiet)', marginTop: 3 }}>{new Date(attempt.startedAt).toLocaleString('zh-CN')}{attempt.endedAt ? ` → ${new Date(attempt.endedAt).toLocaleTimeString('zh-CN')}` : ''}</div>
+                    {attempt.trace?.filter(event => ['tool_started', 'tool_completed', 'error'].includes(event.kind)).map(event => (
+                      <div key={event.seq} style={{ marginTop: 7, paddingLeft: 10, borderLeft: '2px solid var(--line)', fontSize: 10, color: event.kind === 'error' ? 'var(--rose)' : 'var(--muted)' }}>
+                        <strong>{event.kind}</strong>{event.toolName ? ` · ${event.toolName}` : ''}{event.command ? ` · ${event.command}` : ''}
+                        {event.content && <div style={{ marginTop: 2, overflowWrap: 'anywhere' }}>{event.content.slice(0, 240)}</div>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : <div style={{ marginTop: 7, fontSize: 10, color: 'var(--quiet)' }}>尚未创建 Attempt</div>}
+          </article>
+        ))}
+      </div>
+    </section>
   )
 }
