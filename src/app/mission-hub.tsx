@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import type { AgentRole, ExecutionMode, OrchestratedTicket, SuperagentMission, TicketStage } from '@/agent-orchestrator'
 import { TerminalWorkbench, type ArtifactWorkbenchTarget, type WorkbenchMode } from './workbench'
+import { MissionPlanPanel } from './mission-plan-panel'
 
 export type RunWorkspaceRun = {
   id: string
@@ -52,7 +53,7 @@ export type RunWorkspaceRun = {
   deliveryApproval?: { requestedAt: string; changedFiles: string[] }
 }
 
-type HubTab = 'kanban' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
+type HubTab = 'kanban' | 'v2-plan' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
 
 const stageColumns: Array<{ id: TicketStage; label: string; icon: typeof Clock; color: string }> = [
   { id: 'backlog', label: '待办排期', icon: Layers, color: '#94a3b8' },
@@ -432,6 +433,17 @@ export function MissionHub({
           <button
             type="button"
             role="tab"
+            className={`hub-view-tab ${activeTab === 'v2-plan' ? 'active' : ''}`}
+            aria-selected={activeTab === 'v2-plan'}
+            onClick={() => setActiveTab('v2-plan')}
+          >
+            <Workflow size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>V2 计划图</strong><small>Mission / Plan</small></span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
             className={`hub-view-tab ${activeTab === 'timeline' ? 'active' : ''}`}
             aria-selected={activeTab === 'timeline'}
             onClick={() => setActiveTab('timeline')}
@@ -502,6 +514,7 @@ export function MissionHub({
 
       {/* 4. Tab Content Area */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {activeTab === 'v2-plan' && <MissionPlanPanel />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
