@@ -563,7 +563,10 @@ export function MissionHub({
 
       {/* 4. Tab Content Area */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {activeTab === 'v2-plan' && <MissionPlanPanel onRunStarted={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }} />}
+        {activeTab === 'v2-plan' && <MissionPlanPanel
+            onRunStarted={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }}
+            onDeliveryRequested={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }}
+          />}
         {activeTab === 'process-tree' && <ExecutionProcessTree run={activeRun} />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
