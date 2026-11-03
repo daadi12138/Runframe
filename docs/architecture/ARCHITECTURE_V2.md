@@ -139,7 +139,8 @@ Recovery invariants:
 - [x] Timeline events can be replayed from the durable journal after SSE notifications are lost.
 - [x] No new destructive Git action is introduced by V2 persistence or planning.
 - [x] Active-attempt recovery reconciles the latest attempt facts from the durable journal, while retaining the legacy manifest as the compatibility snapshot for other Run state.
-- [x] The Mission Plan is dispatchable through V2 Mission orchestration into the compatibility Run / Worktree engine with immutable Plan provenance.\n- [ ] The Mission Plan is dispatched by registered V2 AgentRuntime adapters with capability-gated streaming, cancellation, and session lifecycle semantics.
+- [x] The Mission Plan is dispatchable through V2 Mission orchestration into the compatibility Run / Worktree engine with immutable Plan provenance.
+- [ ] The Mission Plan is dispatched by registered V2 AgentRuntime adapters with capability-gated streaming, cancellation, and session lifecycle semantics.
 
 ## 10. Initial repository boundaries
 
