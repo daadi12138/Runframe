@@ -1302,7 +1302,7 @@ function classifyFailure(message: string): RunFailureCategory {
 }
 async function firstUnapprovedValidationCommand(run: RunSnapshot): Promise<{ key: ProjectCommandKey; command: CommandSpec } | null> {
   for (const candidate of validationCommands(run)) {
-    if (!await isProjectCommandApprovedWithAudit(run.project, candidate.key, candidate.command)) return candidate
+    if (!await isProjectCommandApprovedWithAudit(run.project, candidate.key, candidate.command, run.worktreePath ?? run.project.repositoryPath)) return candidate
   }
   return null
 }
