@@ -65,7 +65,12 @@ export function projectProcessTree(events: readonly ExecutionEvent[]): ProcessTr
       if (existing.runId !== event.runId) throw new Error('Session identity event crosses Run boundaries.')
       if (existing.endedAt) throw new Error('Session identity event arrived after the session ended.')
       if (event.attemptId && existing.attemptId && event.attemptId !== existing.attemptId) throw new Error('Session identity event crosses Attempt boundaries.')
-      nodes.set(existing.id, { ...existing, sessionId: event.payload.nativeSessionId.slice(0, 256) })
+      const nativeSessionId = event.payload.nativeSessionId.slice(0, 256)
+      for (const [id, node] of nodes) {
+        if (id === existing.id || node.sessionId === existing.id) {
+          nodes.set(id, { ...node, sessionId: nativeSessionId })
+        }
+      }
     } else if (event.kind === 'session.ended' || event.kind === 'process.exited') {
       if (!isRecord(event.payload) || typeof event.payload.id !== 'string') {
         throw new Error('Process terminal event must include a node id.')
