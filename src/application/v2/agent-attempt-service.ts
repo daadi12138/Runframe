@@ -1,4 +1,4 @@
-import type { AgentLaunchRequest, AgentRuntime } from '../../ports/v2/agent-runtime'
+import type { AgentLaunchRequest, AgentOutputEvent, AgentRuntime } from '../../ports/v2/agent-runtime'
 import { assertRuntimeCapability } from '../../ports/v2/agent-runtime'
 
 export class AgentAttemptService {
@@ -8,6 +8,7 @@ export class AgentAttemptService {
     runtimeId: string,
     request: AgentLaunchRequest,
     onTrace?: (trace: TTrace) => Promise<void>,
+    onOutput?: (output: AgentOutputEvent) => Promise<void>,
   ): Promise<TResult> {
     const runtime = this.resolveRuntime(runtimeId)
     assertRuntimeCapability(runtime, 'streamingOutput')
@@ -18,6 +19,8 @@ export class AgentAttemptService {
         await onTrace?.(output.event.payload as TTrace)
       } else if (output.event?.type === 'result') {
         result = output.event.payload as TResult
+      } else if (!output.event && output.stream !== 'system' && output.text) {
+        await onOutput?.(output)
       } else if (output.event?.type === 'error') {
         const payload = output.event.payload as { message?: unknown }
         throw new Error(typeof payload?.message === 'string' ? payload.message : `Agent runtime "${runtimeId}" failed.`)
