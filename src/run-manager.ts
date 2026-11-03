@@ -126,6 +126,26 @@ function createAgentRuntimeRegistry(runners: AgentRunnerRegistry<AgentRunner>): 
           occurredAt: new Date().toISOString(),
           event: { type: 'trace', payload: trace },
         }),
+        onProcessStarted: async process => {
+          await input.onProcessStarted?.(process)
+          emit({
+            sessionId: request.attemptId,
+            stream: 'system',
+            text: `OS process started · PID ${process.pid}`,
+            occurredAt: process.startedAt,
+            event: { type: 'process.started', payload: process },
+          })
+        },
+        onProcessExited: async process => {
+          await input.onProcessExited?.(process)
+          emit({
+            sessionId: request.attemptId,
+            stream: 'system',
+            text: `OS process exited · PID ${process.pid} · ${process.exitCode === null ? process.signal ?? 'signal' : process.exitCode}`,
+            occurredAt: process.endedAt,
+            event: { type: 'process.exited', payload: process },
+          })
+        },
       })
     }, async sessionId => {
       terminateProcess(activeProcesses.get(sessionId), 'SIGTERM')
