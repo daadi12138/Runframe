@@ -119,7 +119,7 @@ export class FilesystemMissionRepository implements MissionRepository {
 
   async saveMission(mission: Mission): Promise<void> {
     validateMissionRecord(mission, mission.id)
-    await atomicWrite(this.missionPath(mission.id), `${JSON.stringify(mission, null, 2)}\\n`)
+    await atomicWrite(this.missionPath(mission.id), `${JSON.stringify(mission, null, 2)}\n`)
   }
 
   async getLatestPlan(missionId: string): Promise<PlanRevision | null> {
