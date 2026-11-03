@@ -113,7 +113,7 @@ Recovery invariants:
 - [ ] Add contract tests around legacy Run/Manifest compatibility and migration behavior.
 
 ### Phase 3 — workbench
-- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including task dependency editing and immutable Plan revision saves.
+- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including Mission acceptance criteria, task descriptions and acceptance criteria, multi-dependency editing, and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
 - [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
 - [x] Gate Mission delivery on the legacy Worktree diff approval flow: a successful Run alone cannot mark a Mission delivered; the user must request delivery review, approve the diff in the execution timeline, and then explicitly confirm Mission delivery.
