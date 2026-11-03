@@ -37,3 +37,21 @@ test('rejects invalid plans and illegal mission transitions', async () => {
   ]), /Invalid plan graph/)
   await assert.rejects(() => service.transition(mission.id, 'delivered'), /Invalid mission transition/)
 })
+
+test('normalizes plan task identifiers and rejects blank criteria', async () => {
+  const repository = new MemoryMissionRepository()
+  const service = new MissionService(repository, () => new Date(), () => 'mission-normalize')
+  const mission = await service.create({
+    title: 'Normalize',
+    acceptanceCriteria: [{ id: ' criterion ', description: ' Must work ', required: true }],
+  })
+  assert.deepEqual(mission.acceptanceCriteria, [{ id: 'criterion', description: 'Must work', required: true }])
+  const plan = await service.savePlan(mission.id, [
+    { id: ' task-a ', title: ' Task A ', status: 'pending', dependsOn: [], acceptanceCriteria: [' criterion '] },
+  ])
+  assert.equal(plan.nodes[0].id, 'task-a')
+  assert.deepEqual(plan.nodes[0].acceptanceCriteria, ['criterion'])
+  await assert.rejects(() => service.savePlan(mission.id, [
+    { id: 'task-b', title: 'Task B', status: 'pending', dependsOn: [], acceptanceCriteria: ['   '] },
+  ]), /must not be empty/)
+})
