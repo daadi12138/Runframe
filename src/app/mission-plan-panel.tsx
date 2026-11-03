@@ -10,7 +10,7 @@ type MissionReviewEvidence = {
   plan: PlanRecord
   run: { id: string; status: string; mission: { planRevision: number } }
   evidence: {
-    processTree: Array<{ id: string; kind: string; processId?: number; exitCode?: number }>
+    processTree: Array<{ id: string; parentId?: string; kind: string; processId?: number; sessionId?: string; startedAt: string; endedAt?: string; exitCode?: number }>
     artifacts: Array<{ id: string; type: string; contentHash: string; attemptId?: string }>
     deliveryDiff: Array<{ path: string; operation: string; classification: string; conflicts: Array<{ path: string; reason: string }> }>
     deliveryReceipt: { status: 'approved' | 'no_changes' } | null
@@ -20,6 +20,22 @@ type MissionReviewEvidence = {
 
 const inputStyle = { padding: '9px 11px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--ink)', fontSize: 12, minWidth: 0 } as const
 const buttonStyle = { padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' } as const
+
+function processTreeDepth(nodes: MissionReviewEvidence['evidence']['processTree'], node: MissionReviewEvidence['evidence']['processTree'][number]): number {
+  const byId = new Map(nodes.map(item => [item.id, item]))
+  let depth = 0
+  let parentId = node.parentId
+  const seen = new Set<string>([node.id])
+  while (parentId && depth < nodes.length) {
+    if (seen.has(parentId)) break
+    seen.add(parentId)
+    const parent = byId.get(parentId)
+    if (!parent) break
+    depth += 1
+    parentId = parent.parentId
+  }
+  return depth
+}
 
 export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunStarted?: (runId: string) => void; onDeliveryRequested?: (runId: string) => void }) {
   const [missions, setMissions] = useState<MissionRecord[]>([])
@@ -354,6 +370,22 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               </div>
             ))}
           </div>
+          {reviewEvidence.evidence.processTree.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Observed Session / OS Process Tree</div>
+              {reviewEvidence.evidence.processTree.map(node => (
+                <div key={node.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 0', paddingLeft: Math.min(processTreeDepth(reviewEvidence.evidence.processTree, node), 5) * 14, borderTop: '1px solid var(--line)', fontSize: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div><strong>{node.kind.replace('_', ' ')}</strong> · {node.sessionId ?? node.id}</div>
+                    <div style={{ color: 'var(--muted)' }}>{new Date(node.startedAt).toLocaleTimeString()}{node.endedAt ? ` → ${new Date(node.endedAt).toLocaleTimeString()}` : ' · active at last observation'}</div>
+                  </div>
+                  <span style={{ flexShrink: 0, color: node.endedAt && node.exitCode !== undefined && node.exitCode !== 0 ? 'var(--rose)' : 'var(--muted)' }}>
+                    {node.processId ? `PID ${node.processId}` : ''}{node.exitCode === undefined ? '' : ` · exit ${node.exitCode}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           {reviewEvidence.evidence.artifacts.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Artifact provenance</div>
