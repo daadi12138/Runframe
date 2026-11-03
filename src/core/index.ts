@@ -214,6 +214,7 @@ export { LegacyMissionRunDispatcher } from '../adapters/legacy-run/mission-run-d
 
 export { inspectRunSchedule, validateSchedulerGraph, type ScheduledNode, type SchedulerEdge, type ScheduleInspection } from '../application/v2/task-scheduler'
 export { AgentAttemptService } from '../application/v2/agent-attempt-service'
+export { AgentExecutionPolicy, type AgentExecutionPolicyNode } from '../application/v2/agent-execution-policy'
 export { reconcileInterruptedAttempts, type AttemptRecoveryResult, type RecoverableAttempt, type RecoverableNode } from '../application/v2/attempt-recovery'
 
 export { reconcileMissionRun, type LinkedRunStatus, type MissionRunLink } from '../application/v2/mission-reconciliation'
