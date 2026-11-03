@@ -186,3 +186,5 @@ export type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '
 export { FilesystemExecutionEventStore, createDefaultExecutionEventStore, type FilesystemExecutionEventStoreOptions } from '../adapters/persistence/filesystem-event-store'
 export { FilesystemMissionRepository } from '../adapters/persistence/filesystem-mission-repository'
 export type { MissionRepository } from '../ports/v2/mission-repository'
+
+export { MissionService, type CreateMissionInput } from '../application/v2/mission-service'
