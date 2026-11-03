@@ -166,10 +166,14 @@ export type {
   ApprovalScope,
   Artifact as V2Artifact,
   ExecutionEvent,
+  ExecutionEventKind,
   Mission,
+  MissionStatus,
   NodeAttempt,
   PlanRevision,
   TaskNode,
+  TaskStatus,
+  AttemptStatus,
 } from '../domain/v2/model'
 export {
   canTransitionMission,
