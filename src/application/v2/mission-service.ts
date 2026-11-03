@@ -81,13 +81,11 @@ export class MissionService {
       createdAt: this.now().toISOString(),
     }
     await this.repository.savePlan(plan)
-    if (mission.status === 'draft') {
-      await this.repository.saveMission({
-        ...mission,
-        status: transitionMission(mission.status, 'planned'),
-        updatedAt: this.now().toISOString(),
-      })
-    }
+    await this.repository.saveMission({
+      ...mission,
+      status: mission.status === 'draft' ? transitionMission(mission.status, 'planned') : mission.status,
+      updatedAt: this.now().toISOString(),
+    })
     return plan
   }
 }
