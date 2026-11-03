@@ -71,7 +71,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
         const run = response.ok ? await response.json() as { status: string; logs?: string[]; deliveryApproval?: unknown } : null
         if (!cancelled) {
           setLinkedRunStatus(run?.status ?? null)
-          setDeliveryApproved(Boolean(run && run.status === 'succeeded' && !run.deliveryApproval && run.logs?.some(log => log.includes('交付已批准'))))
+          setDeliveryApproved(Boolean(run && run.status === 'succeeded' && !run.deliveryApproval && run.logs?.some(log => log.includes('交付已批准') || log.includes('未检测到文件变更'))))
         }
       } catch {
         if (!cancelled) setLinkedRunStatus(null)
