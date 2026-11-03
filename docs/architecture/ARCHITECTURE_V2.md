@@ -96,17 +96,24 @@ Recovery invariants:
 - [x] Implement filesystem-backed append-only JSONL event storage with schema versioning, per-run writer locking, sequence validation, replay, idempotency keys, and fsync-before-append completion.
 - [x] Add filesystem persistence for Mission records and immutable, validated Plan revisions.
 - [x] Add unit tests for graph validation, state transitions, event ordering, replay, idempotency, and concurrent writers.
-- [ ] Project legacy Run events into a unified execution timeline.
-- [ ] Add recovery reconciliation from journal evidence and integrate event writes into the legacy Run lifecycle.
+- [x] Project legacy Run events into a replayable V2 execution timeline; the legacy Run manifest remains the compatibility projection.
+- [x] Integrate journal appends into serialized Run manifest writes so the journal is durable before the manifest revision is committed.
+- [x] Expose a paginated timeline read API and render the persisted event stream in the Mission Hub.
+- [ ] Reconcile active attempts and restart recovery directly from journal evidence; the current process recovery still uses the legacy manifest as its operational snapshot.
 
 ### Phase 2 — application services
-- Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
-- Keep facade exports stable through `src/core/index.ts`.
-- Add contract tests around legacy Run/Manifest compatibility.
+- [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
+- [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
+- [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
+- [ ] Route Mission Plan dispatch through the application layer and the capability-aware runtime registry.
+- [ ] Keep facade exports stable through `src/core/index.ts`.
+- [ ] Add contract tests around legacy Run/Manifest compatibility and migration behavior.
 
 ### Phase 3 — workbench
-- Add Mission context and plan revisions.
-- Add process-tree/timeline projections, diff review, artifact provenance, and delivery approvals.
+- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub.
+- [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
+- [ ] Add a hierarchical process-tree projection for nested agent sessions and subprocesses.
+- [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
 
 ### Phase 4 — governance expansion
@@ -115,13 +122,15 @@ Recovery invariants:
 
 ## 9. Acceptance criteria
 
-- Existing workflows and run manifests remain readable without migration.
-- DAG validation rejects duplicate IDs, missing dependencies, self-edges, and cycles.
-- Runtime adapters declare capabilities and reject unsupported operations clearly.
-- Approval scope is checked again at execution time.
-- Event persistence is durable before it is used for recovery claims.
-- UI events can be lost and replayed from persisted evidence.
-- No destructive Git action is performed implicitly.
+- [x] Existing workflows and run manifests remain readable without migration; V2 storage is additive.
+- [x] DAG validation rejects duplicate IDs, missing dependencies, self-edges, duplicate dependencies, and cycles.
+- [x] Runtime adapters declare capabilities and reject unsupported operations clearly at the port boundary.
+- [x] Approval decisions are immutable and exact-scope; latest decision wins.
+- [x] Event appends are persisted and fsynced before the compatibility manifest is committed.
+- [x] Timeline events can be replayed from the durable journal after SSE notifications are lost.
+- [x] No new destructive Git action is introduced by V2 persistence or planning.
+- [ ] Active-attempt recovery is reconstructed from journal evidence rather than only legacy manifest state.
+- [ ] The Mission Plan is dispatchable through V2 orchestration and runtime adapters.
 
 ## 10. Initial repository boundaries
 
