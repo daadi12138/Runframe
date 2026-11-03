@@ -38,6 +38,7 @@ export interface Mission {
   acceptanceCriteria: AcceptanceCriterion[]
   createdAt: string
   updatedAt: string
+  activeRunId?: string
 }
 
 export interface TaskNode {
