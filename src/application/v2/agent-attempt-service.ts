@@ -15,6 +15,9 @@ export class AgentAttemptService {
     const handle = await runtime.launch(request)
     let result: TResult | undefined
     for await (const output of runtime.output(handle.sessionId)) {
+      if (output.event && !runtime.capabilities.structuredEvents) {
+        throw new Error(`Agent runtime "${runtimeId}" emitted structured events without declaring structuredEvents support.`)
+      }
       if (output.event?.type === 'trace') {
         await onTrace?.(output.event.payload as TTrace)
       } else if (output.event?.type === 'result') {
