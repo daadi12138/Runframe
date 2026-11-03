@@ -1,4 +1,4 @@
-import { createDefaultMissionRepository, MissionService } from '@artifact/core'
+import { createDefaultMissionRepository, getRun, MissionService } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,22 @@ const service = () => new MissionService(createDefaultMissionRepository())
 
 export async function GET() {
   try {
-    return Response.json(await service().list())
+    const repository = createDefaultMissionRepository()
+    const missions = await repository.listMissions()
+    const reconciled = await Promise.all(missions.map(async mission => {
+      if (!mission.activeRunId) return mission
+      const run = await getRun(mission.activeRunId)
+      const status = run?.status === 'cancelled'
+        ? 'cancelled'
+        : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
+          ? 'review'
+          : mission.status
+      if (status === mission.status) return mission
+      const updated = { ...mission, status, updatedAt: new Date().toISOString() }
+      await repository.saveMission(updated)
+      return updated
+    }))
+    return Response.json(reconciled)
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 })
   }
