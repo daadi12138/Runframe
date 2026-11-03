@@ -89,6 +89,8 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const publicTraceLimit = 300
 const publicTraceContentLimit = 12_000
 const publicTraceCommandLimit = 2_000
+const journalOutputEventLimit = 1_000
+const journalOutputTextLimit = 4_000
 const publicFinalResponseLimit = 100_000
 const publicTraceSchemaVersion = 1 as const
 const activeRuns = new Set<string>()
@@ -1489,17 +1491,31 @@ async function saveRun(run: RunSnapshot): Promise<void> {
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
         }
+        let omittedOutputCount = 0
         for (const trace of completeTrace) {
           const content = trace.content ?? trace.command ?? trace.status
           if (!content) continue
+          if (trace.seq > journalOutputEventLimit) {
+            omittedOutputCount += 1
+            continue
+          }
           await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:output:${trace.seq}`, trace.occurredAt, {
             id: sessionNodeId,
             sessionId: sessionNodeId,
             traceSequence: trace.seq,
             traceKind: trace.kind,
-            text: content,
+            text: content.slice(0, journalOutputTextLimit),
+            ...(content.length > journalOutputTextLimit ? { truncated: true } : {}),
             ...(trace.toolName ? { toolName: trace.toolName } : {}),
             ...(trace.exitCode === undefined ? {} : { exitCode: trace.exitCode }),
+          })
+        }
+        if (omittedOutputCount > 0) {
+          await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:output:omitted`, attempt.endedAt ?? attempt.startedAt, {
+            id: sessionNodeId,
+            sessionId: sessionNodeId,
+            omittedOutputCount,
+            detail: 'Full normalized trace remains available in the per-Attempt trace.jsonl file.',
           })
         }
         if (attempt.process?.pid) {
