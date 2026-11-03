@@ -18,11 +18,17 @@ export class ApprovalService {
 
   async decide(scope: ApprovalScope, decision: Approval['decision']): Promise<Approval> {
     if (!scope.action.trim() || !scope.workspaceRoot.trim()) throw new Error('Approval action and workspace root are required.')
+    const previous = await this.latestDecision(scope)
+    const requestedAt = this.now()
+    const previousTime = previous ? Date.parse(previous.decidedAt) : Number.NEGATIVE_INFINITY
+    const decidedAt = requestedAt.getTime() <= previousTime
+      ? new Date(previousTime + 1).toISOString()
+      : requestedAt.toISOString()
     const approval: Approval = {
       id: this.createId(),
       scope: { ...scope },
       decision,
-      decidedAt: this.now().toISOString(),
+      decidedAt,
       decidedBy: 'user',
     }
     await this.repository.create(approval)
