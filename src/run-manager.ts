@@ -24,7 +24,7 @@ export type NodeExecutionMode = 'read_only' | 'workspace_write'
 export type RunEvent = { id: string; occurredAt: string; type: 'run-created' | 'run-state' | 'node-state' | 'command' | 'executor' | 'artifact' | 'operator' | 'activity' | 'error'; message: string; nodeId?: string; attemptId?: string; details?: Record<string, string | number | boolean | null> }
 export type AgentTraceEvent = { schemaVersion: 1; seq: number; occurredAt: string; executorId: string; nodeId: string; attemptId: string; kind: 'status' | 'agent_message' | 'reasoning_summary' | 'tool_started' | 'tool_completed' | 'error'; sourceEventId?: string; toolName?: string; content?: string; command?: string; status?: string; exitCode?: number; durationMs?: number; truncated?: boolean; redacted?: boolean }
 export type AgentPromptSnapshot = { schemaVersion: 1; createdAt: string; contentHash: string; runtimeInstruction: string; nodeInstruction: string; renderedPrompt: string; inputArtifactIds: string[]; redacted: boolean }
-export type StepAttempt = { id: string; attempt: number; executorId: string; executorSnapshot?: Pick<ExecutorConfig, 'id' | 'path' | 'model' | 'profile' | 'version'>; status: 'running' | 'paused' | 'succeeded' | 'failed' | 'cancelled'; startedAt: string; endedAt?: string; exitReason?: string; process?: { pid: number; commandHash: string; startedAt: string }; output?: string; inputArtifactIds?: string[]; promptSnapshot?: AgentPromptSnapshot; trace?: AgentTraceEvent[]; traceOmittedCount?: number; finalResponse?: string; finalResponseRedacted?: boolean; finalResponseTruncated?: boolean }
+export type StepAttempt = { id: string; attempt: number; executorId: string; executorSnapshot?: Pick<ExecutorConfig, 'id' | 'path' | 'model' | 'profile' | 'version'>; status: 'running' | 'paused' | 'succeeded' | 'failed' | 'cancelled'; startedAt: string; endedAt?: string; exitReason?: string; process?: { pid: number; commandHash: string; startedAt: string; endedAt?: string; exitCode?: number | null }; output?: string; inputArtifactIds?: string[]; promptSnapshot?: AgentPromptSnapshot; trace?: AgentTraceEvent[]; traceOmittedCount?: number; finalResponse?: string; finalResponseRedacted?: boolean; finalResponseTruncated?: boolean }
 export type RunNode = { id: string; kind: string; executorId?: string; prompt?: string; outputType?: string; executionMode?: NodeExecutionMode; state: RunNodeState; attempts: StepAttempt[]; steeringArtifactIds?: string[] }
 export type RunEdge = { from: string; to: string }
 export type RunArtifact = { id: string; nodeId: string; attemptId?: string; type: string; version: number; schemaId: string; schemaVersion: number; status: 'valid' | 'awaiting_approval' | 'rejected' | 'invalid'; path: string; contentHash: string; inputArtifactIds: string[]; validationErrors: string[]; createdAt: string }
@@ -71,8 +71,8 @@ type AgentActivity = { type: 'executor' | 'command' | 'activity'; message: strin
 type AgentInteractionDraft = Omit<CreateInteractionInput, 'source' | 'nodeId' | 'attemptId'> & { source?: HumanInteractionSource; nodeId?: string; attemptId?: string }
 type AgentRunnerResult = { output: string; activities?: AgentActivity[] }
 type AgentTraceDraft = Omit<AgentTraceEvent, 'schemaVersion' | 'seq' | 'occurredAt' | 'executorId' | 'nodeId' | 'attemptId'>
-type AgentRunner = (input: { prompt: string; cwd: string; writable: boolean; executor: ExecutorConfig; runId?: string; nodeId?: string; attemptId: string; attemptDirectory: string; environment: NodeJS.ProcessEnv; onPublicTrace?: (event: AgentTraceDraft) => Promise<void>; onProcessStarted?: (process: NonNullable<StepAttempt['process']>) => Promise<void>; onInteraction?: (interaction: AgentInteractionDraft) => Promise<void> }) => Promise<string | AgentRunnerResult>
-type RunProcessOptions = { stdin?: string; env?: NodeJS.ProcessEnv; maxLineLength?: number; onStdoutLine?: (line: string) => void | Promise<void>; onSpawn?: (process: NonNullable<StepAttempt['process']>) => void | Promise<void> }
+type AgentRunner = (input: { prompt: string; cwd: string; writable: boolean; executor: ExecutorConfig; runId?: string; nodeId?: string; attemptId: string; attemptDirectory: string; environment: NodeJS.ProcessEnv; onPublicTrace?: (event: AgentTraceDraft) => Promise<void>; onProcessStarted?: (process: NonNullable<StepAttempt['process']>) => Promise<void>; onProcessExited?: (process: { pid: number; endedAt: string; exitCode: number | null; signal: NodeJS.Signals | null }) => Promise<void>; onInteraction?: (interaction: AgentInteractionDraft) => Promise<void> }) => Promise<string | AgentRunnerResult>
+type RunProcessOptions = { stdin?: string; env?: NodeJS.ProcessEnv; maxLineLength?: number; onStdoutLine?: (line: string) => void | Promise<void>; onSpawn?: (process: NonNullable<StepAttempt['process']>) => void | Promise<void>; onExit?: (process: { pid: number; endedAt: string; exitCode: number | null; signal: NodeJS.Signals | null }) => void | Promise<void> }
 
 const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
 const artifactRoot = () => join(stateRoot(), 'runs')
@@ -813,6 +813,7 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
       environment: agentEnvironment(),
       onPublicTrace: (event: AgentTraceDraft) => persistAgentTrace(run.id, node.id, attempt.id, event),
       onProcessStarted: (process: NonNullable<StepAttempt['process']>) => persistAttemptProcess(run.id, node.id, attempt.id, process),
+      onProcessExited: process => persistAttemptProcessExit(run.id, node.id, attempt.id, process),
       onInteraction: (interaction: AgentInteractionDraft) => requestRunInteraction(run.id, {
         ...interaction,
         nodeId: interaction.nodeId ?? node.id,
@@ -1446,6 +1447,68 @@ async function saveRun(run: RunSnapshot): Promise<void> {
         }
       }
     }
+    // Project the concrete CLI session/process lifecycle into the append-only journal.
+    // Session IDs are deterministic per Attempt; OS process facts retain the real PID and exit code.
+    const recordedRuntimeKeys = new Set(journal.map(event => {
+      const payload = event.payload as { runtimeFactKey?: unknown } | null
+      return typeof payload?.runtimeFactKey === 'string' ? payload.runtimeFactKey : undefined
+    }).filter((key): key is string => Boolean(key)))
+    const appendRuntimeFact = async (
+      attempt: StepAttempt,
+      kind: 'session.started' | 'session.ended' | 'process.started' | 'process.exited',
+      key: string,
+      occurredAt: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (recordedRuntimeKeys.has(key)) return
+      sequence += 1
+      await eventStore.append({
+        id: key,
+        runId: run.id,
+        sequence,
+        kind,
+        occurredAt,
+        attemptId: attempt.id,
+        payload: { runtimeFactKey: key, ...payload },
+      }, { idempotencyKey: key })
+      recordedRuntimeKeys.add(key)
+    }
+
+    for (const node of run.nodes) {
+      for (const attempt of node.attempts) {
+        const sessionNodeId = `session:${attempt.id}`
+        await appendRuntimeFact(attempt, 'session.started', `session:${attempt.id}:started`, attempt.startedAt, {
+          id: sessionNodeId,
+          kind: 'agent_session',
+          attemptId: attempt.id,
+          sessionId: sessionNodeId,
+        })
+        if (attempt.process?.pid) {
+          await appendRuntimeFact(attempt, 'process.started', `process:${attempt.id}:${attempt.process.pid}:started`, attempt.process.startedAt, {
+            id: `process:${attempt.id}:${attempt.process.pid}`,
+            parentId: sessionNodeId,
+            kind: 'os_process',
+            attemptId: attempt.id,
+            sessionId: sessionNodeId,
+            processId: attempt.process.pid,
+          })
+          if (attempt.process.endedAt) {
+            await appendRuntimeFact(attempt, 'process.exited', `process:${attempt.id}:${attempt.process.pid}:exited`, attempt.process.endedAt, {
+              id: `process:${attempt.id}:${attempt.process.pid}`,
+              ...(attempt.process.exitCode === undefined || attempt.process.exitCode === null ? {} : { exitCode: attempt.process.exitCode }),
+              ...(attempt.process.exitCode === null ? { signal: 'terminated' } : {}),
+            })
+          }
+        }
+        if (attempt.status !== 'running' && attempt.status !== 'paused') {
+          await appendRuntimeFact(attempt, 'session.ended', `session:${attempt.id}:ended`, attempt.endedAt ?? new Date().toISOString(), {
+            id: sessionNodeId,
+            ...(attempt.status === 'succeeded' ? { exitCode: 0 } : {}),
+          })
+        }
+      }
+    }
+
     const revision = currentRevision + 1
     await atomicWrite(manifestPath(run.id), JSON.stringify({ ...run, revision }, null, 2))
     run.revision = revision
@@ -1498,6 +1561,25 @@ async function persistAttemptProcess(runId: string, nodeId: string, attemptId: s
   const attempt = node?.attempts.find(item => item.id === attemptId)
   if (!run || !node || !attempt) return
   attempt.process = process
+  await saveRun(run)
+}
+
+async function persistAttemptProcessExit(
+  runId: string,
+  nodeId: string,
+  attemptId: string,
+  exit: { pid: number; endedAt: string; exitCode: number | null; signal: NodeJS.Signals | null },
+): Promise<void> {
+  const run = await getRun(runId)
+  const node = run?.nodes.find(item => item.id === nodeId)
+  const attempt = node?.attempts.find(item => item.id === attemptId)
+  if (!run || !node || !attempt || attempt.process?.pid !== exit.pid) return
+  attempt.process = { ...attempt.process, endedAt: exit.endedAt, exitCode: exit.exitCode }
+  appendEvent(run, 'activity', `${node.id} · 进程退出 · PID ${exit.pid} · ${exit.exitCode === null ? `signal ${exit.signal ?? 'unknown'}` : `exit ${exit.exitCode}`}`, node.id, attempt.id, {
+    processId: exit.pid,
+    ...(exit.exitCode === null ? {} : { exitCode: exit.exitCode }),
+    signal: exit.signal,
+  })
   await saveRun(run)
 }
 
@@ -1635,6 +1717,7 @@ async function runCodex(input: Parameters<AgentRunner>[0]): Promise<AgentRunnerR
       env: input.environment,
       maxLineLength: 1_000_000,
       onSpawn: input.onProcessStarted,
+      onExit: input.onProcessExited,
       onStdoutLine: async line => {
         heartbeat.touch()
         let event: CodexJsonEvent
@@ -1962,7 +2045,8 @@ async function runProcess(command: string, args: string[], cwd: string, timeoutM
       forceKillTimer = setTimeout(() => { if (!settled) terminateProcess(child, 'SIGKILL') }, 5_000)
     }, timeoutMs)
     child.on('error', error => settleAfterCallbacks(() => reject(error)))
-    child.on('close', (code, signal) => settleAfterCallbacks(() => {
+    child.on('close', (code, signal) => settleAfterCallbacks(async () => {
+      if (options.onExit && child.pid) await options.onExit({ pid: child.pid, endedAt: new Date().toISOString(), exitCode: code, signal: signal as NodeJS.Signals | null })
       if (timedOut) return reject(new Error(redactPublicText(`Command timed out after ${timeoutMs}ms: ${command}`).value))
       // Structured stdout may contain private native events. Adapter failures expose stderr only.
       const failureOutput = redactPublicText((stderr || (options.onStdoutLine ? '' : stdout)).trim().slice(-8_000)).value
