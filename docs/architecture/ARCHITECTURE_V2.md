@@ -93,7 +93,7 @@ Recovery invariants:
 - Do not change the existing Run manager or on-disk schema.
 
 ### Phase 1 — event journal and projections
-- [x] Implement filesystem-backed append-only JSONL event storage with schema versioning, per-run writer locking, sequence validation, replay, idempotency keys, and fsync-before-append completion.
+- [x] Implement filesystem-backed append-only JSONL event storage with schema versioning, per-run writer locking, dead-process lock recovery, torn-tail recovery, sequence validation, replay, idempotency keys, and fsync-before-append completion.
 - [x] Add filesystem persistence for Mission records and immutable, validated Plan revisions.
 - [x] Add unit tests for graph validation, state transitions, event ordering, replay, idempotency, and concurrent writers.
 - [x] Project legacy Run events into a replayable V2 execution timeline; the legacy Run manifest remains the compatibility projection.
@@ -113,7 +113,7 @@ Recovery invariants:
 ### Phase 3 — workbench
 - [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including task dependency editing and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
-- [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; reconcile completed or failed Runs into Mission review state.
+- [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
 - [ ] Add a hierarchical process-tree projection for nested agent sessions and subprocesses.
 - [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
