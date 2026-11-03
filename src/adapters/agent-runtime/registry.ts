@@ -10,13 +10,24 @@ export class AgentRuntimeRegistry {
     this.runtimes.set(runtime.id, runtime)
   }
 
-  replace(runtime: AgentRuntime): void {
+  async replace(runtime: AgentRuntime): Promise<void> {
     this.validateRuntime(runtime)
+    const previous = this.runtimes.get(runtime.id)
     this.runtimes.set(runtime.id, runtime)
+    if (previous && previous !== runtime) await previous.dispose?.()
   }
 
   private validateRuntime(runtime: AgentRuntime): void {
     if (!runtime.id.trim()) throw new Error('Agent runtime ID must not be empty.')
+    if (!runtime.capabilities || Object.values(runtime.capabilities).some(value => typeof value !== 'boolean')) {
+      throw new Error(`Runtime "${runtime.id}" must declare every capability as a boolean.`)
+    }
+    if (typeof runtime.launch !== 'function' || typeof runtime.output !== 'function') {
+      throw new Error(`Runtime "${runtime.id}" must implement launch() and output().`)
+    }
+    if (runtime.capabilities.cancellation && typeof runtime.cancel !== 'function') {
+      throw new Error(`Runtime "${runtime.id}" declares cancellation support without implementing cancel().`)
+    }
     if (runtime.capabilities.pause && !runtime.pause) {
       throw new Error(`Runtime "${runtime.id}" declares pause support without implementing pause().`)
     }
