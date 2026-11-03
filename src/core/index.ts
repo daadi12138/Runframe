@@ -187,6 +187,7 @@ export {
 } from '../domain/v2/state-machine'
 export { getReadyTaskIds, validatePlanGraph, type GraphValidation } from '../domain/v2/graph'
 export { AgentRuntimeRegistry } from '../adapters/agent-runtime/registry'
+export { AgentRunnerRegistry, type AgentRunnerRegistration } from '../adapters/agent-runtime/runner-registry'
 export { assertRuntimeCapability, type AgentLaunchRequest, type AgentOutputEvent, type AgentRuntime, type AgentSessionHandle } from '../ports/v2/agent-runtime'
 export type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../ports/v2/event-store'
 
