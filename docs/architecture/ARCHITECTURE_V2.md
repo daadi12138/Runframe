@@ -145,4 +145,4 @@ src/
   core/            # stable public facade
 ```
 
-This branch introduces only the additive Phase 0 foundation. Later phases require concrete persistence, runtime integration, UI work, and migration tests; they are intentionally not represented by empty implementations.
+This branch now contains the additive Phase 0 contracts plus substantial Phase 1 persistence/timeline work and the first Mission, Plan, and approval use cases. The V2 planning UI can dispatch a saved plan through a compatibility bridge into the existing isolated Run / Worktree engine. Full completion still requires capability-aware runtime dispatch, scheduler and recovery extraction, journal-driven crash recovery, process-tree visualization, and end-to-end migration tests.
