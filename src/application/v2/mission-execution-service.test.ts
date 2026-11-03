@@ -102,3 +102,19 @@ test('serializes concurrent dispatches for one mission to prevent duplicate runs
   assert.equal(results.filter(result => result.status === 'fulfilled').length, 1)
   assert.equal(results.filter(result => result.status === 'rejected').length, 1)
 })
+
+test('refuses to dispatch an invalid persisted Plan graph', async () => {
+  const repository = new MemoryRepository()
+  const missionService = new MissionService(repository, () => new Date(), () => 'mission-invalid-graph')
+  const mission = await missionService.create({ title: 'Invalid graph' })
+  await missionService.savePlan(mission.id, [
+    { id: 'first', title: 'First', status: 'pending', dependsOn: ['missing'] },
+  ])
+  const dispatcher = new FakeDispatcher()
+  const execution = new MissionExecutionService(repository, dispatcher)
+  await assert.rejects(
+    () => execution.dispatch(mission.id, { executorId: 'codex', executionMode: 'read_only' }),
+    /Saved Plan is invalid/,
+  )
+  assert.equal(dispatcher.request, undefined)
+})
