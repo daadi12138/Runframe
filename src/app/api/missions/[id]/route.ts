@@ -1,4 +1,4 @@
-import { cancelRun, createDefaultMissionRepository, getRun, MissionService } from '@artifact/core'
+import { cancelRun, createDefaultMissionRepository, getRun, listRuns, MissionService, reconcileMissionRun } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -12,17 +12,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const repository = createDefaultMissionRepository()
     let mission = await repository.getMission(id)
     if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
-    if (mission.activeRunId) {
-      const run = await getRun(mission.activeRunId)
-      const reconciledStatus = mission.status !== 'running'
-        ? mission.status
-        : run?.status === 'cancelled'
-          ? 'cancelled'
-          : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
-            ? 'review'
-            : mission.status
-      if (reconciledStatus !== mission.status) {
-        mission = { ...mission, status: reconciledStatus, updatedAt: new Date().toISOString() }
+    const run = mission.activeRunId
+      ? await getRun(mission.activeRunId)
+      : (await listRuns()).filter(item => item.mission?.missionId === mission.id)
+        .sort((left, right) => right.startedAt.localeCompare(left.startedAt))[0] ?? null
+    if (run) {
+      const updated = reconcileMissionRun(mission, { id: run.id, status: run.status })
+      if (updated !== mission) {
+        mission = updated
         await repository.saveMission(mission)
       }
     }
