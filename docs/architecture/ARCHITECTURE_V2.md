@@ -134,7 +134,7 @@ Recovery invariants:
 - [x] Capture native Codex thread IDs and Claude Code session IDs when emitted by their CLI event streams, while retaining the Attempt ID as the stable Runframe runtime-session fallback.
 - [ ] Add native child-agent session hooks and capture nested tool subprocesses where the CLI exposes reliable identities.
 - [x] Add a Mission Review evidence API that verifies the Run's Mission + exact immutable Plan Revision provenance and assembles execution events, process tree, Attempt links, Artifact hashes, delivery diff/receipt, and workspace-scoped approval decisions; surface the evidence summary in Mission planning UI. Mission Review now renders each Task Attempt's executor, state, timestamps, process identity/exit facts, input Artifact references, and bounded-manifest trace omission count.
-- [ ] Complete interactive diff/conflict review and end-to-end validation of every evidence link before delivery.
+- [ ] Complete interactive diff/conflict review and end-to-end validation of every evidence link before delivery. A reusable V2 validation primitive now rejects absolute/traversal paths and bounds diff preview bytes/path counts; the review API/UI still needs to source and render validated patch content.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
 
 ### Phase 4 — governance expansion
