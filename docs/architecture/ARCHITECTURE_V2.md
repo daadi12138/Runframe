@@ -105,7 +105,7 @@ Recovery invariants:
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
 - [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
 - [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate.
-- [x] Add Mission and Plan REST APIs, plus a compatibility dispatch bridge that converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution.
+- [x] Add Mission and Plan REST APIs, a MissionDispatchService use case, and a MissionRunEngine port. The LegacyRunEngineAdapter converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution without putting orchestration logic in the HTTP route.
 - [x] Route Mission Plan dispatch through a MissionExecutionService use case and a dedicated legacy Run adapter.
 - [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
 - [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch.
@@ -116,6 +116,7 @@ Recovery invariants:
 - [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including task dependency editing and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
 - [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
+- [x] Gate Mission delivery on the legacy Worktree diff approval flow: a successful Run alone cannot mark a Mission delivered; the user must request delivery review, approve the diff in the execution timeline, and then explicitly confirm Mission delivery.
 - [x] Add a Run → TaskNode → Attempt → Tool Event execution hierarchy in the Mission Hub.
 - [ ] Extend the hierarchy to nested child-agent sessions and operating-system subprocess trees.
 - [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
