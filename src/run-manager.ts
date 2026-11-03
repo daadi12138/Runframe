@@ -2045,13 +2045,17 @@ async function runProcess(command: string, args: string[], cwd: string, timeoutM
       forceKillTimer = setTimeout(() => { if (!settled) terminateProcess(child, 'SIGKILL') }, 5_000)
     }, timeoutMs)
     child.on('error', error => settleAfterCallbacks(() => reject(error)))
-    child.on('close', (code, signal) => settleAfterCallbacks(async () => {
-      if (options.onExit && child.pid) await options.onExit({ pid: child.pid, endedAt: new Date().toISOString(), exitCode: code, signal: signal as NodeJS.Signals | null })
-      if (timedOut) return reject(new Error(redactPublicText(`Command timed out after ${timeoutMs}ms: ${command}`).value))
-      // Structured stdout may contain private native events. Adapter failures expose stderr only.
-      const failureOutput = redactPublicText((stderr || (options.onStdoutLine ? '' : stdout)).trim().slice(-8_000)).value
-      return code !== 0 ? reject(new Error(failureOutput || `${command} ${signal ? `terminated by ${signal}` : `exited with code ${code}`}`)) : resolve(stdout.trim() || stderr.trim())
-    }))
+    child.on('close', (code, signal) => {
+      const exitFact = options.onExit && child.pid
+        ? Promise.resolve(options.onExit({ pid: child.pid, endedAt: new Date().toISOString(), exitCode: code, signal: signal as NodeJS.Signals | null }))
+        : Promise.resolve()
+      void exitFact.then(() => settleAfterCallbacks(() => {
+        if (timedOut) return reject(new Error(redactPublicText(`Command timed out after ${timeoutMs}ms: ${command}`).value))
+        // Structured stdout may contain private native events. Adapter failures expose stderr only.
+        const failureOutput = redactPublicText((stderr || (options.onStdoutLine ? '' : stdout)).trim().slice(-8_000)).value
+        return code !== 0 ? reject(new Error(failureOutput || `${command} ${signal ? `terminated by ${signal}` : `exited with code ${code}`}`)) : resolve(stdout.trim() || stderr.trim())
+      }), error => finish(() => reject(error)))
+    })
     if (options.stdin !== undefined && child.stdin) {
       child.stdin.on('error', () => undefined)
       child.stdin.end(options.stdin, 'utf8')
