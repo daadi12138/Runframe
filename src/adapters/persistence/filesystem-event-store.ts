@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, rm, stat } from 'node:fs/promises'
+import { mkdir, open, readFile, rm, stat, truncate, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ExecutionEvent } from '../../domain/v2/model'
 import type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../../ports/v2/event-store'
@@ -81,12 +81,29 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
     while (!acquired) {
       try {
         await mkdir(lockPath)
-        acquired = true
+        try {
+          await writeFile(join(lockPath, 'owner.json'), JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }), 'utf8')
+          acquired = true
+        } catch (error) {
+          await rm(lockPath, { recursive: true, force: true })
+          throw error
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
         try {
           const lockStat = await stat(lockPath)
-          if (Date.now() - lockStat.mtimeMs > this.staleLockMs) {
+          let stale = Date.now() - lockStat.mtimeMs > this.staleLockMs
+          try {
+            const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
+            if (Number.isSafeInteger(owner.pid) && typeof owner.pid === 'number') {
+              try { process.kill(owner.pid, 0) } catch (ownerError) {
+                if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stale = true
+              }
+            }
+          } catch (ownerError) {
+            if ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' && Date.now() - lockStat.mtimeMs > 5_000) stale = true
+          }
+          if (stale) {
             await rm(lockPath, { recursive: true, force: true })
             continue
           }
@@ -115,6 +132,14 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
       throw error
+    }
+    if (!content) return []
+    // A process may crash between writing the final JSONL record and its newline/fsync.
+    // Only newline-terminated records are committed; discard an incomplete tail before replay.
+    if (!content.endsWith('\n')) {
+      const lastCompleteByte = content.lastIndexOf('\n') + 1
+      await truncate(this.journalPath(runId), lastCompleteByte)
+      content = content.slice(0, lastCompleteByte)
     }
     if (!content) return []
     const lines = content.split('\n')
