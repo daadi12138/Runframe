@@ -9,6 +9,7 @@ import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
 import type { ExecutionEvent } from './domain/v2/model'
 import { inspectRunSchedule } from './application/v2/task-scheduler'
+import { reconcileInterruptedAttempts } from './application/v2/attempt-recovery'
 import { AgentRunnerRegistry } from './adapters/agent-runtime/runner-registry'
 import { AgentRuntimeRegistry } from './adapters/agent-runtime/registry'
 import { OneShotCliAgentRuntime } from './adapters/agent-runtime/one-shot-cli-runtime'
@@ -614,59 +615,17 @@ export async function resumeInterruptedRuns(): Promise<void> {
       // A corrupt journal is not safe to resume from. Leave the Run untouched for inspection.
       continue
     }
-    const latestAttemptEvents = new Map<string, (typeof journal)[number]>()
-    for (const event of journal) {
-      if (event.attemptId && event.kind.startsWith('attempt.')) latestAttemptEvents.set(event.attemptId, event)
+    const recovery = reconcileInterruptedAttempts(run.nodes, journal, isProcessAlive, new Date().toISOString())
+    run.nodes = recovery.nodes
+    for (const item of recovery.messages) {
+      appendLog(run, `${item.nodeId} · ${item.message}`)
     }
-
-    let hasLiveProcess = false
-    for (const node of run.nodes) {
-      const attempt = node.attempts.at(-1)
-      if (!attempt) continue
-      const fact = latestAttemptEvents.get(attempt.id)
-      const payload = fact?.payload as { process?: { pid?: number }; exitReason?: string } | undefined
-
-      if (fact?.kind === 'attempt.completed') {
-        attempt.status = 'succeeded'
-        attempt.endedAt = fact.occurredAt
-        node.state = 'success'
-        continue
-      }
-      if (fact?.kind === 'attempt.cancelled') {
-        attempt.status = 'cancelled'
-        attempt.endedAt = fact.occurredAt
-        node.state = 'cancelled'
-        continue
-      }
-      if (fact?.kind === 'attempt.failed' || fact?.kind === 'attempt.interrupted') {
-        attempt.status = 'failed'
-        attempt.endedAt = fact.occurredAt
-        attempt.exitReason = payload?.exitReason ?? 'recovered_failed_attempt'
-        node.state = 'idle'
-        appendLog(run, `${node.id} · 从事件日志恢复到失败 Attempt，允许重新尝试`)
-        continue
-      }
-
-      const hasActiveFact = fact && ['attempt.started', 'attempt.resumed', 'attempt.process_attached', 'attempt.paused'].includes(fact.kind)
-      if (node.state !== 'running' && attempt.status !== 'running' && attempt.status !== 'paused' && !hasActiveFact) continue
-
-      const pid = payload?.process?.pid ?? attempt.process?.pid
-      if (pid && isProcessAlive(pid)) {
-        node.state = 'paused'
-        attempt.status = 'paused'
-        attempt.endedAt = new Date().toISOString()
-        attempt.exitReason = 'process_still_running'
-        hasLiveProcess = true
-        appendLog(run, `${node.id} · 事件日志确认 PID ${pid} 仍在运行，已暂停以避免重复执行`)
-      } else {
-        node.state = 'idle'
-        attempt.status = 'failed'
-        attempt.endedAt = new Date().toISOString()
-        attempt.exitReason = 'process_lost'
-        if (node.kind === 'Agent') await appendAgentTrace(run, node, attempt, { kind: 'error', content: 'Executor process was lost during service restart.' })
-        appendLog(run, `${node.id} · 事件日志未发现存活进程，上一 Attempt 标记为 process_lost`)
-      }
+    for (const attemptId of recovery.lostAgentAttemptIds) {
+      const node = run.nodes.find(item => item.attempts.some(attempt => attempt.id === attemptId))
+      const attempt = node?.attempts.find(item => item.id === attemptId)
+      if (node && attempt) await appendAgentTrace(run, node, attempt, { kind: 'error', content: 'Executor process was lost during service restart.' })
     }
+    const hasLiveProcess = recovery.hasLiveProcess
     if (hasLiveProcess) { run.status = 'paused'; await saveRun(run); continue }
     run.status = 'running'
     await saveRun(run)
