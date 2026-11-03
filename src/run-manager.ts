@@ -17,6 +17,7 @@ export type RunInputAttachment = { id: string; name: string; mediaType: string; 
 export type RunInput = { text: string; attachments: RunInputAttachment[]; submittedAt?: string }
 export type WorkflowRunReference = { workflowId: string; workflowName: string; revision: number; publishedAt: string }
 export type MissionRunReference = { missionId: string; missionTitle: string; planRevisionId: string; planRevision: number }
+export type DeliveryReceipt = { status: 'approved' | 'no_changes'; completedAt: string; approvedBy: 'user' | 'system' }
 export type NodeExecutionMode = 'read_only' | 'workspace_write'
 export type RunEvent = { id: string; occurredAt: string; type: 'run-created' | 'run-state' | 'node-state' | 'command' | 'executor' | 'artifact' | 'operator' | 'activity' | 'error'; message: string; nodeId?: string; attemptId?: string; details?: Record<string, string | number | boolean | null> }
 export type AgentTraceEvent = { schemaVersion: 1; seq: number; occurredAt: string; executorId: string; nodeId: string; attemptId: string; kind: 'status' | 'agent_message' | 'reasoning_summary' | 'tool_started' | 'tool_completed' | 'error'; sourceEventId?: string; toolName?: string; content?: string; command?: string; status?: string; exitCode?: number; durationMs?: number; truncated?: boolean; redacted?: boolean }
@@ -62,7 +63,7 @@ export type DeliveryChange = {
 }
 export type DeliveryApproval = { requestedAt: string; changedFiles: string[]; changes: DeliveryChange[]; worktreePath: string; projectPath: string }
 export type RunFailureCategory = 'compilation' | 'test_assertion' | 'dependency' | 'environment' | 'timeout' | 'command_configuration' | 'executor' | 'unknown'
-export type RunSnapshot = { id: string; revision?: number; status: RunStatus; startedAt: string; endedAt?: string; workflowCompletedAt?: string; project: ProjectConfig; workflow?: WorkflowRunReference; mission?: MissionRunReference; input: RunInput; intelligence?: IntentOrchestrationSnapshot; baseGitRef?: string; branchName?: string; worktreePath?: string; pendingCommandApproval?: PendingCommandApproval; deliveryApproval?: DeliveryApproval; interactions: HumanInteractionRequest[]; autoRepairCount?: number; lastFailure?: { nodeId: string; attemptId: string; category: RunFailureCategory; message: string; repairExhausted?: boolean }; validationEnvironmentFingerprint?: string; nodes: RunNode[]; edges: RunEdge[]; logs: string[]; events: RunEvent[]; artifacts: RunArtifact[] }
+export type RunSnapshot = { id: string; revision?: number; status: RunStatus; startedAt: string; endedAt?: string; workflowCompletedAt?: string; project: ProjectConfig; workflow?: WorkflowRunReference; mission?: MissionRunReference; input: RunInput; intelligence?: IntentOrchestrationSnapshot; baseGitRef?: string; branchName?: string; worktreePath?: string; pendingCommandApproval?: PendingCommandApproval; deliveryApproval?: DeliveryApproval; deliveryReceipt?: DeliveryReceipt; interactions: HumanInteractionRequest[]; autoRepairCount?: number; lastFailure?: { nodeId: string; attemptId: string; category: RunFailureCategory; message: string; repairExhausted?: boolean }; validationEnvironmentFingerprint?: string; nodes: RunNode[]; edges: RunEdge[]; logs: string[]; events: RunEvent[]; artifacts: RunArtifact[] }
 export type StartRunInput = { nodes: Array<Omit<RunNode, 'state' | 'attempts' | 'steeringArtifactIds'>>; edges?: RunEdge[]; input?: RunInput; workflow?: WorkflowRunReference; mission?: MissionRunReference; intentAware?: boolean }
 type AgentActivity = { type: 'executor' | 'command' | 'activity'; message: string; details?: Record<string, string | number | boolean | null> }
 type AgentInteractionDraft = Omit<CreateInteractionInput, 'source' | 'nodeId' | 'attemptId'> & { source?: HumanInteractionSource; nodeId?: string; attemptId?: string }
@@ -279,8 +280,10 @@ export async function approveRun(id: string): Promise<RunSnapshot | null> {
     }
     await applyDelivery(run)
     delete run.deliveryApproval
+    const completedAt = new Date().toISOString()
+    run.deliveryReceipt = { status: 'approved', completedAt, approvedBy: 'user' }
     run.status = 'succeeded'
-    run.endedAt = new Date().toISOString()
+    run.endedAt = completedAt
     resolveInteraction(run, 'delivery', 'answered', { decision: 'approve' })
     appendLog(run, `交付已批准 · 结果已应用到项目目录 ${run.project.repositoryPath}`)
     await saveRun(run)
@@ -650,7 +653,10 @@ async function processRun(id: string): Promise<void> {
               delete run.endedAt
               addInteraction(run, { source: 'delivery', kind: 'review', title: '确认交付结果', question: '请检查待应用到项目目录的文件变更。确认后才会写入原项目。', context: { files: delivery.changedFiles, risk: 'high' }, required: true })
               appendLog(run, `工作流已完成 · ${delivery.changes.length} 项变更等待交付审批`)
-            } else appendLog(run, '工作流已成功完成 · 未检测到文件变更')
+            } else {
+              run.deliveryReceipt = { status: 'no_changes', completedAt: new Date().toISOString(), approvedBy: 'system' }
+              appendLog(run, '工作流已成功完成 · 未检测到文件变更')
+            }
           } else appendLog(run, '工作流已成功完成')
           await saveRun(run)
         }
