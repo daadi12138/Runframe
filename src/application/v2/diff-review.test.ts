@@ -14,7 +14,7 @@ test('bounds diff preview bytes and path count', () => {
   const result = validateDiffReview({ patch: 'é'.repeat(100), paths: ['a.ts', 'b.ts'], maxPatchBytes: 32, maxPaths: 1 })
   assert.equal(result.paths.length, 1)
   assert.equal(result.truncated, true)
-  assert.ok(Buffer.byteLength(result.patch, 'utf8') <= 80)
+  assert.ok(Buffer.byteLength(result.patch, 'utf8') <= 32)
   assert.match(result.patch, /truncated/)
 })
 
