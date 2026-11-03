@@ -1,4 +1,4 @@
-import { createDefaultMissionRepository, getRun, MissionService } from '@artifact/core'
+import { cancelRun, createDefaultMissionRepository, getRun, MissionService } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -14,11 +14,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
     if (mission.activeRunId) {
       const run = await getRun(mission.activeRunId)
-      const reconciledStatus = run?.status === 'cancelled'
-        ? 'cancelled'
-        : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
-          ? 'review'
-          : mission.status
+      const reconciledStatus = mission.status !== 'running'
+        ? mission.status
+        : run?.status === 'cancelled'
+          ? 'cancelled'
+          : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
+            ? 'review'
+            : mission.status
       if (reconciledStatus !== mission.status) {
         mission = { ...mission, status: reconciledStatus, updatedAt: new Date().toISOString() }
         await repository.saveMission(mission)
@@ -33,7 +35,17 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
   try {
-    const body = z.object({ status: z.enum(['planned', 'running', 'review', 'delivered', 'cancelled']) }).parse(await request.json())
+    const body = z.object({ status: z.enum(['planned', 'review', 'delivered', 'cancelled']) }).parse(await request.json())
+    const repository = createDefaultMissionRepository()
+    const mission = await repository.getMission(id)
+    if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
+    if (body.status === 'delivered') {
+      const run = mission.activeRunId ? await getRun(mission.activeRunId) : null
+      if (run?.status !== 'succeeded') return Response.json({ error: 'Mission can be delivered only after its linked Run succeeds and delivery approval completes.' }, { status: 409 })
+    }
+    if (body.status === 'cancelled' && mission.activeRunId && mission.status === 'running') {
+      await cancelRun(mission.activeRunId)
+    }
     return Response.json(await service().transition(id, body.status))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
