@@ -1544,9 +1544,16 @@ async function saveRun(run: RunSnapshot): Promise<void> {
               ...(attempt.process.exitCode === undefined || attempt.process.exitCode === null ? {} : { exitCode: attempt.process.exitCode }),
               ...(attempt.process.exitCode === null ? { signal: 'terminated' } : {}),
             })
+          } else if (attempt.status !== 'running' && !activeProcesses.has(attempt.id)) {
+            // A terminal legacy/recovered Attempt may have no OS exit callback.
+            // Close its observed process without inventing an exit code.
+            await appendRuntimeFact(attempt, 'process.exited', `process:${attempt.id}:${attempt.process.pid}:exit-unobserved`, attempt.endedAt ?? new Date().toISOString(), {
+              id: `process:${attempt.id}:${attempt.process.pid}`,
+              terminationReason: 'exit_status_unavailable',
+            })
           }
         }
-        const processStillActive = Boolean(attempt.process?.pid && !attempt.process.endedAt)
+        const processStillActive = Boolean(attempt.process?.pid && !attempt.process.endedAt && activeProcesses.has(attempt.id))
         if (attempt.status !== 'running' && !processStillActive) {
           await appendRuntimeFact(attempt, 'session.ended', `session:${attempt.id}:ended`, attempt.endedAt ?? new Date().toISOString(), {
             id: sessionNodeId,
