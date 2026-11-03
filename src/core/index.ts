@@ -155,3 +155,29 @@ export {
   writeProjectFile,
   type ProjectFileEntry,
 } from '../project-files'
+
+
+// Additive V2 contracts. Legacy Run APIs above remain unchanged.
+export type {
+  AcceptanceCriterion,
+  AgentCapabilities,
+  AgentProfile,
+  Approval,
+  ApprovalScope,
+  Artifact as V2Artifact,
+  ExecutionEvent,
+  Mission,
+  NodeAttempt,
+  PlanRevision,
+  TaskNode,
+} from '../domain/v2/model'
+export {
+  canTransitionMission,
+  transitionAttempt,
+  transitionMission,
+  transitionTask,
+} from '../domain/v2/state-machine'
+export { getReadyTaskIds, validatePlanGraph, type GraphValidation } from '../domain/v2/graph'
+export { AgentRuntimeRegistry } from '../adapters/agent-runtime/registry'
+export { assertRuntimeCapability, type AgentLaunchRequest, type AgentOutputEvent, type AgentRuntime, type AgentSessionHandle } from '../ports/v2/agent-runtime'
+export type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../ports/v2/event-store'
