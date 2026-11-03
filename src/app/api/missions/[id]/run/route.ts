@@ -1,4 +1,4 @@
-import { cancelRun, createDefaultMissionRepository, startRun, transitionMission } from '@artifact/core'
+import { createDefaultMissionRepository, getRun, LegacyMissionRunDispatcher, MissionExecutionService } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -13,56 +13,16 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params
   try {
     const body = requestSchema.parse(await request.json())
-    const repository = createDefaultMissionRepository()
-    const mission = await repository.getMission(id)
-    if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
-    if (mission.status !== 'planned' && mission.status !== 'review') {
-      return Response.json({ error: `Mission must be planned or in review before dispatch (current: ${mission.status}).` }, { status: 409 })
-    }
-    const plan = await repository.getLatestPlan(id)
-    if (!plan) return Response.json({ error: 'Mission has no saved Plan Revision' }, { status: 409 })
-
-    const nodes = plan.nodes.map(task => ({
-      id: task.id,
-      kind: 'Agent',
-      executorId: body.executorId,
-      prompt: [
-        task.title,
-        task.description ?? '',
-        ...(task.acceptanceCriteria ?? []).map(criterion => `Acceptance criterion: ${criterion}`),
-      ].filter(Boolean).join('\n\n'),
-      outputType: 'implementation-report',
-      executionMode: body.executionMode,
-    }))
-    const edges = plan.nodes.flatMap(task => task.dependsOn.map(dependency => ({ from: dependency, to: task.id })))
-    const run = await startRun({
-      nodes,
-      edges,
-      input: {
-        text: [mission.title, mission.description, ...mission.acceptanceCriteria.map(item => `- ${item.description}`)].filter(Boolean).join('\n\n'),
-        attachments: [],
-      },
-      mission: {
-        missionId: mission.id,
-        missionTitle: mission.title,
-        planRevisionId: plan.id,
-        planRevision: plan.revision,
-      },
-    })
-    const updatedMission = {
-      ...mission,
-      status: transitionMission(mission.status, 'running'),
-      activeRunId: run.id,
-      updatedAt: new Date().toISOString(),
-    }
-    try {
-      await repository.saveMission(updatedMission)
-    } catch (error) {
-      await cancelRun(run.id).catch(() => undefined)
-      throw error
-    }
-    return Response.json({ mission: updatedMission, run }, { status: 201 })
+    const service = new MissionExecutionService(
+      createDefaultMissionRepository(),
+      new LegacyMissionRunDispatcher(),
+    )
+    const result = await service.dispatch(id, body)
+    const run = await getRun(result.runId)
+    if (!run) throw new Error('Run manifest was not available after dispatch.')
+    return Response.json({ mission: result.mission, run }, { status: 201 })
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
+    const message = error instanceof Error ? error.message : String(error)
+    return Response.json({ error: message }, { status: message.startsWith('Mission not found:') ? 404 : 400 })
   }
 }
