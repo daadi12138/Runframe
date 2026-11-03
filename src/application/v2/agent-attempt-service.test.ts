@@ -4,9 +4,10 @@ import { OneShotCliAgentRuntime } from '../../adapters/agent-runtime/one-shot-cl
 import { AgentAttemptService } from './agent-attempt-service'
 
 test('executes a Task Attempt through the AgentRuntime port and forwards trace events', async () => {
-  const runtime = new OneShotCliAgentRuntime('codex', async request => ({
-    output: request.prompt,
-  }), async () => undefined)
+  const runtime = new OneShotCliAgentRuntime('codex', async (request, emit) => {
+    emit({ sessionId: request.attemptId, stream: 'stdout', text: 'working', occurredAt: '2026-01-01T00:00:00.000Z', event: { type: 'trace', payload: { kind: 'status' } } })
+    return { output: request.prompt }
+  }, async () => undefined)
   const service = new AgentAttemptService(id => {
     assert.equal(id, 'codex')
     return runtime
@@ -18,7 +19,7 @@ test('executes a Task Attempt through the AgentRuntime port and forwards trace e
     prompt: 'implement',
   }, async trace => { traces.push(trace) })
   assert.deepEqual(result, { output: 'implement' })
-  assert.deepEqual(traces, [])
+  assert.deepEqual(traces, [{ kind: 'status' }])
 })
 
 test('fails clearly when a runtime does not declare cancellation support', async () => {
