@@ -1,4 +1,9 @@
+import type { AgentCapabilities } from '../../domain/v2/model'
 import type { AgentRuntime } from '../../ports/v2/agent-runtime'
+
+const capabilityKeys: Array<keyof AgentCapabilities> = [
+  'streamingOutput', 'structuredEvents', 'cancellation', 'pause', 'resume', 'attach', 'usageReporting',
+]
 
 /** Explicit runtime registry; no implicit capability assumptions are made. */
 export class AgentRuntimeRegistry {
