@@ -732,7 +732,7 @@ async function processRun(id: string): Promise<void> {
   } finally {
     activeRuns.delete(id)
     const latest = await getRun(id)
-    if (latest?.status === 'running' && latest.nodes.some(node => node.state === 'idle' && parentsSucceeded(latest, node.id))) void processRun(id)
+    if (latest?.status === 'running' && inspectRunSchedule(latest.nodes, latest.edges).nextReadyNode) void processRun(id)
     drainRunQueue()
   }
 }
@@ -1308,7 +1308,6 @@ async function firstUnapprovedValidationCommand(run: RunSnapshot): Promise<{ key
   }
   return null
 }
-function parentsSucceeded(run: RunSnapshot, nodeId: string): boolean { return run.edges.filter(edge => edge.to === nodeId).every(edge => run.nodes.find(node => node.id === edge.from)?.state === 'success') }
 function latestValidArtifacts(run: RunSnapshot, nodeIds: string[]): RunArtifact[] { return nodeIds.flatMap(nodeId => { const matches = run.artifacts.filter(artifact => artifact.nodeId === nodeId && artifact.status === 'valid'); return matches.length ? [matches.at(-1)!] : [] }) }
 function collectDownstream(run: RunSnapshot, sourceId: string): Set<string> { const result = new Set<string>(); const queue = [sourceId]; while (queue.length) { const current = queue.shift()!; for (const edge of run.edges.filter(item => item.from === current)) if (!result.has(edge.to)) { result.add(edge.to); queue.push(edge.to) } } return result }
 function collectAncestors(run: RunSnapshot, sourceId: string): Set<string> { const result = new Set<string>(); const queue = [sourceId]; while (queue.length) { const current = queue.shift()!; for (const edge of run.edges.filter(item => item.to === current)) if (!result.has(edge.from)) { result.add(edge.from); queue.push(edge.from) } } return result }
