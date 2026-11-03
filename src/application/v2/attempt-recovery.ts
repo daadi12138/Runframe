@@ -61,7 +61,7 @@ export function reconcileInterruptedAttempts<TAttempt extends RecoverableAttempt
     if (pid && isProcessAlive(pid)) {
       hasLiveProcess = true
       messages.push({ nodeId: node.id, attemptId: attempt.id, message: `事件日志确认 PID ${pid} 仍在运行，已暂停以避免重复执行`, kind: 'live' })
-      return { ...node, state: 'paused', attempts: node.attempts.map(item => item.id === attempt.id ? { ...item, status: 'paused', endedAt: now, exitReason: 'process_still_running' } as TAttempt : item) } as TNode
+      return { ...node, state: 'paused', attempts: node.attempts.map(item => item.id === attempt.id ? { ...item, status: 'paused', endedAt: undefined, exitReason: 'process_still_running' } as TAttempt : item) } as TNode
     }
 
     messages.push({ nodeId: node.id, attemptId: attempt.id, message: '事件日志未发现存活进程，上一 Attempt 标记为 process_lost', kind: 'lost' })
