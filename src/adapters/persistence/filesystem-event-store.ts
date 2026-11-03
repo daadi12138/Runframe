@@ -112,8 +112,38 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
             if (Date.now() - lockStat.mtimeMs > ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' ? 5_000 : this.staleLockMs)) stale = true
           }
           if (stale) {
-            await rm(lockPath, { recursive: true, force: true })
-            continue
+            // Serialize stale-lock reclamation itself. Without this second atomic
+            // lock, two waiters could both remove a newly acquired writer lock.
+            const reclaimPath = `${lockPath}.reclaim`
+            let reclaimAcquired = false
+            try {
+              await mkdir(reclaimPath)
+              reclaimAcquired = true
+            } catch (reclaimError) {
+              if ((reclaimError as NodeJS.ErrnoException).code !== 'EEXIST') throw reclaimError
+            }
+            if (reclaimAcquired) {
+              try {
+                let stillStale = false
+                try {
+                  const currentStat = await stat(lockPath)
+                  const currentOwner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
+                  if (Number.isSafeInteger(currentOwner.pid) && typeof currentOwner.pid === 'number') {
+                    try { process.kill(currentOwner.pid, 0) } catch (ownerError) {
+                      if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stillStale = true
+                    }
+                  } else {
+                    stillStale = Date.now() - currentStat.mtimeMs > this.staleLockMs
+                  }
+                } catch (ownerError) {
+                  stillStale = (ownerError as NodeJS.ErrnoException).code === 'ENOENT'
+                }
+                if (stillStale) await rm(lockPath, { recursive: true, force: true })
+              } finally {
+                await rm(reclaimPath, { recursive: true, force: true })
+              }
+              continue
+            }
           }
         } catch (statError) {
           if ((statError as NodeJS.ErrnoException).code === 'ENOENT') continue
