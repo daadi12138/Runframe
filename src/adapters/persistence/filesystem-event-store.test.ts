@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { appendFile, mkdtemp, rm } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -67,6 +67,23 @@ test('discards an incomplete final JSONL record after an interrupted append', as
       occurredAt: new Date().toISOString(), payload: { message: 'running' },
     })
     assert.equal(await store.lastSequence('run-torn'), 2)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('reclaims a journal lock left by a dead process', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'runframe-event-stale-lock-'))
+  try {
+    const lock = join(root, 'run-stale', '.write-lock')
+    await mkdir(lock, { recursive: true })
+    await writeFile(join(lock, 'owner.json'), JSON.stringify({ pid: 2_000_000_000, acquiredAt: Date.now() }))
+    const store = new FilesystemExecutionEventStore({ rootDirectory: root })
+    await store.append({
+      id: 'event-1', runId: 'run-stale', sequence: 1, kind: 'run.created',
+      occurredAt: new Date().toISOString(), payload: {},
+    })
+    assert.equal(await store.lastSequence('run-stale'), 1)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
