@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir, open, readFile, rm, stat } from 'node:fs/promises'
+import { mkdir, open, readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ExecutionEvent } from '../../domain/v2/model'
 import type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../../ports/v2/event-store'
