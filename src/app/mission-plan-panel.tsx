@@ -61,7 +61,9 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const selectedMission = useMemo(() => missions.find(item => item.id === selectedId) ?? null, [missions, selectedId])
 
   useEffect(() => {
-    if (!selectedMission?.activeRunId) { setLinkedRunStatus(null); return }
+    if (!selectedMission?.activeRunId) { setLinkedRunStatus(null); setDeliveryApproved(false); return }
+    setLinkedRunStatus(null)
+    setDeliveryApproved(false)
     let cancelled = false
     const loadStatus = async () => {
       try {
