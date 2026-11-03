@@ -7,7 +7,7 @@ import { AgentTool, ShellTool } from './tool-executor'
 import { resolveExecutorForRun, type ExecutorConfig } from './executor-config'
 import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
-import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApproved, loadProject, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
+import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
 export type RunNodeState = 'idle' | 'running' | 'paused' | 'success' | 'waiting' | 'failed' | 'cancelled' | 'skipped'
@@ -610,7 +610,7 @@ async function processRun(id: string): Promise<void> {
       }
       if (ready.kind === '验证') {
         await discoverWorktreeValidationCommands(run)
-        const pendingCommand = firstUnapprovedValidationCommand(run)
+        const pendingCommand = await firstUnapprovedValidationCommand(run)
       if (pendingCommand) {
           ready.state = 'waiting'
           run.status = 'awaiting_approval'
@@ -1244,8 +1244,11 @@ function classifyFailure(message: string): RunFailureCategory {
   if (/executor|codex|claude|process lost/i.test(message)) return 'executor'
   return 'unknown'
 }
-function firstUnapprovedValidationCommand(run: RunSnapshot): { key: ProjectCommandKey; command: CommandSpec } | null {
-  return validationCommands(run).find(({ key, command }) => !isProjectCommandApproved(run.project, key, command)) ?? null
+async function firstUnapprovedValidationCommand(run: RunSnapshot): Promise<{ key: ProjectCommandKey; command: CommandSpec } | null> {
+  for (const candidate of validationCommands(run)) {
+    if (!await isProjectCommandApprovedWithAudit(run.project, candidate.key, candidate.command)) return candidate
+  }
+  return null
 }
 function parentsSucceeded(run: RunSnapshot, nodeId: string): boolean { return run.edges.filter(edge => edge.to === nodeId).every(edge => run.nodes.find(node => node.id === edge.from)?.state === 'success') }
 function latestValidArtifacts(run: RunSnapshot, nodeIds: string[]): RunArtifact[] { return nodeIds.flatMap(nodeId => { const matches = run.artifacts.filter(artifact => artifact.nodeId === nodeId && artifact.status === 'valid'); return matches.length ? [matches.at(-1)!] : [] }) }
