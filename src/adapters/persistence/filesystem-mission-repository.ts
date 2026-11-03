@@ -146,6 +146,15 @@ export class FilesystemMissionRepository implements MissionRepository {
     return null
   }
 
+  async getPlanRevision(missionId: string, revision: number): Promise<PlanRevision | null> {
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('Plan revision must be a positive safe integer.')
+    const plan = await readJson<unknown>(join(this.plansDirectory(missionId), `revision-${revision}.json`))
+    if (plan === null) return null
+    const validated = validatePlanRecord(plan, missionId)
+    if (validated.revision !== revision) throw new Error(`Corrupt Plan Revision ${validated.id}: filename/revision mismatch.`)
+    return validated
+  }
+
   async savePlan(plan: PlanRevision): Promise<void> {
     validatePlanRecord(plan, plan.missionId)
     if (!(await this.getMission(plan.missionId))) throw new Error(`Mission not found: ${plan.missionId}`)
