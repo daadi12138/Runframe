@@ -10,6 +10,9 @@ import { createDefaultExecutionEventStore } from './adapters/persistence/filesys
 import type { ExecutionEvent } from './domain/v2/model'
 import { inspectRunSchedule } from './application/v2/task-scheduler'
 import { AgentRunnerRegistry } from './adapters/agent-runtime/runner-registry'
+import { AgentRuntimeRegistry } from './adapters/agent-runtime/registry'
+import { OneShotCliAgentRuntime } from './adapters/agent-runtime/one-shot-cli-runtime'
+import { assertRuntimeCapability } from './ports/v2/agent-runtime'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, recordProjectCommandDecision, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -106,6 +109,31 @@ const builtInAgentAdapters = () => [
   { id: 'claude', capabilities: cliRunnerCapabilities, run: runClaude },
 ]
 let agentAdapters = new AgentRunnerRegistry<AgentRunner>(builtInAgentAdapters())
+function createAgentRuntimeRegistry(runners: AgentRunnerRegistry<AgentRunner>): AgentRuntimeRegistry {
+  const registry = new AgentRuntimeRegistry()
+  for (const registration of runners.list()) {
+    registry.register(new OneShotCliAgentRuntime(registration.id, async (request, emit) => {
+      const input = request.metadata as Parameters<AgentRunner>[0]
+      if (!input || input.attemptId !== request.attemptId || input.cwd !== request.workspaceRoot) {
+        throw new Error('Agent Runtime launch context does not match its Attempt or workspace.')
+      }
+      return registration.run({
+        ...input,
+        onPublicTrace: async trace => emit({
+          sessionId: request.attemptId,
+          stream: 'system',
+          text: trace.content ?? trace.command ?? trace.status ?? trace.kind,
+          occurredAt: new Date().toISOString(),
+          event: { type: 'trace', payload: trace },
+        }),
+      })
+    }, async sessionId => {
+      terminateProcess(activeProcesses.get(sessionId), 'SIGTERM')
+    }))
+  }
+  return registry
+}
+let agentRuntimes = createAgentRuntimeRegistry(agentAdapters)
 const shellTool = new ShellTool()
 const agentTool = new AgentTool()
 
@@ -114,6 +142,7 @@ export function configureRunManagerForTests(dependencies: { codexRunner?: AgentR
     ...adapter,
     run: adapter.id === 'codex' ? dependencies.codexRunner ?? adapter.run : dependencies.claudeRunner ?? adapter.run,
   })))
+  agentRuntimes = createAgentRuntimeRegistry(agentAdapters)
 }
 
 function maxConcurrentRuns(): number {
@@ -774,8 +803,9 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
   if (node.kind === 'Agent') {
     const executor = await resolveExecutorForRun(node.executorId ?? 'codex')
     assertExecutorReady(executor, node.executorId ?? 'codex')
-    const adapter = agentAdapters.get(executor.id)
-    if (!adapter) throw new Error(`Executor adapter not implemented: ${executor.id}`)
+    const runtime = agentRuntimes.get(executor.id)
+    assertRuntimeCapability(runtime, 'streamingOutput')
+    if (!agentAdapters.has(executor.id) || !agentRuntimes.list().some(runtime => runtime.id === executor.id)) throw new Error(`Executor runtime adapter not implemented: ${executor.id}`)
     attempt.executorSnapshot = { id: executor.id, path: executor.path, model: executor.model, profile: executor.profile, version: executor.version }
     const inputs = await inputPackage(run, node); attempt.inputArtifactIds = inputs.artifactIds
     const writable = nodeCanWrite(node)
@@ -823,7 +853,7 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
       }).then(() => undefined),
     }
     const execution = await agentTool.execute({
-      runner: input => adapter.run(input as Parameters<AgentRunner>[0]),
+      runner: () => executeAgentRuntime(runtime, executionInput),
       input: executionInput,
     }, { cwd: run.worktreePath, workspaceRoot: run.worktreePath, mode: writable ? 'workspace_write' : 'read_only', attemptId: attempt.id })
     if (execution.permission === 'deny') throw new Error(`Agent 被权限策略拒绝：${execution.reason}`)
@@ -838,6 +868,32 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
   if (node.kind === '验证') return executeValidation(run, node, attempt)
   if (node.kind === '交付') { const diff = await runProcess('git', ['diff', '--no-ext-diff', '--stat', run.baseGitRef ?? 'HEAD'], run.worktreePath, 30_000); const status = await runProcess('git', ['status', '--short'], run.worktreePath, 15_000); return reportPayload('Git 交付报告已生成', `Worktree: ${run.worktreePath}\nBranch: ${run.branchName}\n\nChanged files:\n${status || '(none)'}\n\nDiff stat:\n${diff || '(none)'}`) }
   return reportPayload(`${node.kind} 节点已完成`, `节点 ${node.id} 已由本地运行时完成。`)
+}
+
+async function executeAgentRuntime(
+  runtime: import('./ports/v2/agent-runtime').AgentRuntime,
+  input: Parameters<AgentRunner>[0],
+): Promise<AgentRunnerResult> {
+  const handle = await runtime.launch({
+    attemptId: input.attemptId,
+    workspaceRoot: input.cwd,
+    prompt: input.prompt,
+    model: input.executor.model,
+    metadata: input,
+  })
+  let result: AgentRunnerResult | undefined
+  for await (const output of runtime.output(handle.sessionId)) {
+    if (output.event?.type === 'trace') {
+      await input.onPublicTrace?.(output.event.payload as AgentTraceDraft)
+    } else if (output.event?.type === 'result') {
+      result = normalizeAgentResult(output.event.payload as string | AgentRunnerResult)
+    } else if (output.event?.type === 'error') {
+      const payload = output.event.payload as { message?: unknown }
+      throw new Error(typeof payload?.message === 'string' ? payload.message : 'Agent Runtime failed.')
+    }
+  }
+  if (!result) throw new Error('Agent Runtime ended without a result event.')
+  return result
 }
 
 async function validateAgentExecutors(nodes: Array<Omit<RunNode, 'state' | 'attempts'>>): Promise<void> {
