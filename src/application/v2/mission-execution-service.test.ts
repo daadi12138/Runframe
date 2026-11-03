@@ -17,6 +17,7 @@ class MemoryRepository implements MissionRepository {
     this.missions.set(mission.id, mission)
   }
   async getLatestPlan(id: string) { return this.plans.get(id)?.at(-1) ?? null }
+  async getPlanRevision(id: string, revision: number) { return this.plans.get(id)?.find(plan => plan.revision === revision) ?? null }
   async savePlan(plan: PlanRevision) { this.plans.set(plan.missionId, [...(this.plans.get(plan.missionId) ?? []), plan]) }
 }
 
