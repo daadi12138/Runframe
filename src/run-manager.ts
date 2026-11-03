@@ -1271,9 +1271,11 @@ async function saveRun(run: RunSnapshot): Promise<void> {
   const previous = pendingRunWrites.get(run.id) ?? Promise.resolve()
   const next = previous.catch(() => undefined).then(async () => {
     let currentRevision = 0
+    let previousNodes: RunNode[] = []
     try {
-      const current = JSON.parse(await readFile(manifestPath(run.id), 'utf8')) as { revision?: unknown }
+      const current = JSON.parse(await readFile(manifestPath(run.id), 'utf8')) as { revision?: unknown; nodes?: RunNode[] }
       if (Number.isSafeInteger(current.revision) && (current.revision as number) >= 0) currentRevision = current.revision as number
+      if (Array.isArray(current.nodes)) previousNodes = current.nodes
     } catch { /* The first save creates the manifest. */ }
     // Never allow an older in-memory snapshot to roll back a newer persisted one.
     if (currentRevision !== expectedRevision) return
@@ -1316,6 +1318,66 @@ async function saveRun(run: RunSnapshot): Promise<void> {
           ...(legacyEvent.details ? { details: legacyEvent.details } : {}),
         },
       }, { idempotencyKey: `legacy:${legacyEvent.id}` })
+    }
+
+    // Persist attempt lifecycle facts independently of the mutable Run manifest.
+    const previousAttempts = new Map(previousNodes.flatMap(node =>
+      node.attempts.map(attempt => [attempt.id, { nodeId: node.id, attempt }] as const),
+    ))
+    const recordedAttemptKeys = new Set(journal.map(event => {
+      const payload = event.payload as { attemptTransitionKey?: unknown } | null
+      return typeof payload?.attemptTransitionKey === 'string' ? payload.attemptTransitionKey : undefined
+    }).filter((key): key is string => Boolean(key)))
+    const appendAttemptFact = async (
+      node: RunNode,
+      attempt: StepAttempt,
+      kind: 'attempt.started' | 'attempt.paused' | 'attempt.resumed' | 'attempt.completed' | 'attempt.failed' | 'attempt.cancelled' | 'attempt.interrupted' | 'attempt.process_attached',
+      key: string,
+      occurredAt: string,
+    ) => {
+      if (recordedAttemptKeys.has(key)) return
+      sequence += 1
+      await eventStore.append({
+        id: key,
+        runId: run.id,
+        sequence,
+        kind,
+        occurredAt,
+        attemptId: attempt.id,
+        payload: {
+          source: 'legacy-attempt-projection',
+          attemptTransitionKey: key,
+          nodeId: node.id,
+          attemptNumber: attempt.attempt,
+          executorId: attempt.executorId,
+          status: attempt.status,
+          message: `${node.id} · Attempt ${attempt.attempt} · ${kind}`,
+          ...(attempt.process ? { process: attempt.process } : {}),
+          ...(attempt.exitReason ? { exitReason: attempt.exitReason } : {}),
+        },
+      }, { idempotencyKey: key })
+      recordedAttemptKeys.add(key)
+    }
+
+    for (const node of run.nodes) {
+      for (const attempt of node.attempts) {
+        const previousAttempt = previousAttempts.get(attempt.id)?.attempt
+        if (!previousAttempt) {
+          await appendAttemptFact(node, attempt, 'attempt.started', `attempt:${attempt.id}:started`, attempt.startedAt)
+        } else if (previousAttempt.status !== attempt.status) {
+          const kind = attempt.status === 'paused' ? 'attempt.paused'
+            : attempt.status === 'running' && previousAttempt.status === 'paused' ? 'attempt.resumed'
+            : attempt.status === 'succeeded' ? 'attempt.completed'
+            : attempt.status === 'failed' ? 'attempt.failed'
+            : attempt.status === 'cancelled' ? 'attempt.cancelled'
+            : 'attempt.interrupted'
+          const transitionKey = `attempt:${attempt.id}:transition:${previousAttempt.status}-${attempt.status}:${attempt.endedAt ?? attempt.trace?.at(-1)?.seq ?? attempt.startedAt}`
+          await appendAttemptFact(node, attempt, kind, transitionKey, attempt.endedAt ?? new Date().toISOString())
+        }
+        if (attempt.process?.pid && previousAttempt?.process?.pid !== attempt.process.pid) {
+          await appendAttemptFact(node, attempt, 'attempt.process_attached', `attempt:${attempt.id}:process:${attempt.process.pid}`, attempt.process.startedAt)
+        }
+      }
     }
     const revision = currentRevision + 1
     await atomicWrite(manifestPath(run.id), JSON.stringify({ ...run, revision }, null, 2))
