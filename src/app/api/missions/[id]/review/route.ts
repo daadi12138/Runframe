@@ -58,6 +58,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
             id: attempt.id,
             attempt: attempt.attempt,
             executorId: attempt.executorId,
+            sessionId: attempt.sessionId,
             status: attempt.status,
             startedAt: attempt.startedAt,
             endedAt: attempt.endedAt,
