@@ -41,7 +41,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
     if (body.status === 'delivered') {
       const run = mission.activeRunId ? await getRun(mission.activeRunId) : null
-      if (run?.status !== 'succeeded') return Response.json({ error: 'Mission can be delivered only after its linked Run succeeds and delivery approval completes.' }, { status: 409 })
+      const approved = run?.status === 'succeeded'
+        && !run.deliveryApproval
+        && Boolean(run.logs?.some(log => log.includes('交付已批准')))
+      if (!approved) return Response.json({ error: 'Mission can be delivered only after the linked Run has passed delivery approval and applied its Worktree changes.' }, { status: 409 })
     }
     if (body.status === 'cancelled' && mission.activeRunId && mission.status === 'running') {
       await cancelRun(mission.activeRunId)
