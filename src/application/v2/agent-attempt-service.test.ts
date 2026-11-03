@@ -5,8 +5,8 @@ import { AgentAttemptService } from './agent-attempt-service'
 
 test('executes a Task Attempt through the AgentRuntime port and forwards trace events', async () => {
   const runtime = new OneShotCliAgentRuntime('codex', async (request, emit) => {
-    emit({ sessionId: request.attemptId, stream: 'stdout', text: 'raw chunk', occurredAt: '2026-01-01T00:00:00.000Z' })
-    emit({ sessionId: request.attemptId, stream: 'system', text: 'status', occurredAt: '2026-01-01T00:00:01.000Z', event: { type: 'trace', payload: { kind: 'status' } } })
+    await emit({ sessionId: request.attemptId, stream: 'stdout', text: 'raw chunk', occurredAt: '2026-01-01T00:00:00.000Z' })
+    await emit({ sessionId: request.attemptId, stream: 'system', text: 'status', occurredAt: '2026-01-01T00:00:01.000Z', event: { type: 'trace', payload: { kind: 'status' } } })
     return { output: request.prompt }
   }, async () => undefined)
   const service = new AgentAttemptService(id => {
@@ -53,4 +53,19 @@ test('rejects structured events from runtimes that did not declare the capabilit
     workspaceRoot: '/worktree',
     prompt: 'test',
   }), /without declaring structuredEvents support/)
+})
+
+test('cancels a session when durable trace consumption fails', async () => {
+  const cancelled: string[] = []
+  const runtime = new OneShotCliAgentRuntime('codex', async (request, emit) => {
+    await emit({ sessionId: request.attemptId, stream: 'system', text: 'trace', occurredAt: '2026-01-01T00:00:00.000Z', event: { type: 'trace', payload: { kind: 'status' } } })
+    return { output: 'never accepted' }
+  }, async sessionId => { cancelled.push(sessionId) })
+  const service = new AgentAttemptService(() => runtime)
+  await assert.rejects(service.execute('codex', {
+    attemptId: 'attempt-sink-failure',
+    workspaceRoot: '/worktree',
+    prompt: 'test',
+  }, async () => { throw new Error('journal unavailable') }), /journal unavailable/)
+  assert.deepEqual(cancelled, ['attempt-sink-failure'])
 })
