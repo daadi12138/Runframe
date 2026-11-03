@@ -14,6 +14,11 @@ export type ExecutionEventKind =
   | 'attempt.resumed'
   | 'attempt.process_attached'
   | 'attempt.cancelled'
+  | 'session.started'
+  | 'session.output'
+  | 'session.ended'
+  | 'process.started'
+  | 'process.exited'
   | 'approval.requested'
   | 'approval.granted'
   | 'approval.denied'
@@ -91,6 +96,21 @@ export interface NodeAttempt {
   startedAt?: string
   finishedAt?: string
   failureReason?: string
+}
+
+/** A normalized node in the observed runtime process/session tree. */
+export interface ProcessTreeNode {
+  id: string
+  runId: string
+  parentId?: string
+  kind: 'agent_session' | 'os_process' | 'tool_process'
+  attemptId?: string
+  sessionId?: string
+  processId?: number
+  command?: string
+  startedAt: string
+  endedAt?: string
+  exitCode?: number
 }
 
 export interface ExecutionEvent<TPayload = unknown> {
