@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Mission, PlanRevision } from '../../domain/v2/model'
 import { validatePlanGraph } from '../../domain/v2/graph'
@@ -102,7 +102,17 @@ export class FilesystemMissionRepository implements MissionRepository {
       throw new Error(`Expected plan revision ${expectedRevision}, received ${plan.revision}.`)
     }
     const path = join(this.plansDirectory(plan.missionId), `revision-${plan.revision}.json`)
-    if (await readJson<PlanRevision>(path)) throw new Error(`Plan revision already exists: ${plan.revision}`)
-    await atomicWrite(path, `${JSON.stringify(plan, null, 2)}\n`)
+    await mkdir(this.plansDirectory(plan.missionId), { recursive: true })
+    // wx makes each revision immutable even when two callers race to persist it.
+    const handle = await open(path, 'wx')
+    try {
+      await handle.writeFile(`${JSON.stringify(plan, null, 2)}\n`, 'utf8')
+      await handle.sync()
+    } catch (error) {
+      await rm(path, { force: true }).catch(() => undefined)
+      throw error
+    } finally {
+      await handle.close()
+    }
   }
 }
