@@ -28,7 +28,7 @@ export type NodeExecutionMode = 'read_only' | 'workspace_write'
 export type RunEvent = { id: string; occurredAt: string; type: 'run-created' | 'run-state' | 'node-state' | 'command' | 'executor' | 'artifact' | 'operator' | 'activity' | 'error'; message: string; nodeId?: string; attemptId?: string; details?: Record<string, string | number | boolean | null> }
 export type AgentTraceEvent = { schemaVersion: 1; seq: number; occurredAt: string; executorId: string; nodeId: string; attemptId: string; kind: 'status' | 'agent_message' | 'reasoning_summary' | 'tool_started' | 'tool_completed' | 'error'; sourceEventId?: string; toolName?: string; content?: string; command?: string; status?: string; exitCode?: number; durationMs?: number; truncated?: boolean; redacted?: boolean }
 export type AgentPromptSnapshot = { schemaVersion: 1; createdAt: string; contentHash: string; runtimeInstruction: string; nodeInstruction: string; renderedPrompt: string; inputArtifactIds: string[]; redacted: boolean }
-export type StepAttempt = { id: string; attempt: number; executorId: string; executorSnapshot?: Pick<ExecutorConfig, 'id' | 'path' | 'model' | 'profile' | 'version'>; status: 'running' | 'paused' | 'succeeded' | 'failed' | 'cancelled'; startedAt: string; endedAt?: string; exitReason?: string; process?: { pid: number; commandHash: string; startedAt: string; endedAt?: string; exitCode?: number | null }; output?: string; inputArtifactIds?: string[]; promptSnapshot?: AgentPromptSnapshot; trace?: AgentTraceEvent[]; traceOmittedCount?: number; finalResponse?: string; finalResponseRedacted?: boolean; finalResponseTruncated?: boolean }
+export type StepAttempt = { id: string; attempt: number; executorId: string; executorSnapshot?: Pick<ExecutorConfig, 'id' | 'path' | 'model' | 'profile' | 'version'>; status: 'running' | 'paused' | 'succeeded' | 'failed' | 'cancelled'; startedAt: string; endedAt?: string; exitReason?: string; process?: { pid: number; commandHash: string; startedAt: string; endedAt?: string; exitCode?: number | null; signal?: NodeJS.Signals | null }; output?: string; inputArtifactIds?: string[]; promptSnapshot?: AgentPromptSnapshot; trace?: AgentTraceEvent[]; traceOmittedCount?: number; finalResponse?: string; finalResponseRedacted?: boolean; finalResponseTruncated?: boolean }
 export type RunNode = { id: string; kind: string; executorId?: string; prompt?: string; outputType?: string; executionMode?: NodeExecutionMode; state: RunNodeState; attempts: StepAttempt[]; steeringArtifactIds?: string[] }
 export type RunEdge = { from: string; to: string }
 export type RunArtifact = { id: string; nodeId: string; attemptId?: string; type: string; version: number; schemaId: string; schemaVersion: number; status: 'valid' | 'awaiting_approval' | 'rejected' | 'invalid'; path: string; contentHash: string; inputArtifactIds: string[]; validationErrors: string[]; createdAt: string }
@@ -1542,7 +1542,7 @@ async function saveRun(run: RunSnapshot): Promise<void> {
             await appendRuntimeFact(attempt, 'process.exited', `process:${attempt.id}:${attempt.process.pid}:exited`, attempt.process.endedAt, {
               id: `process:${attempt.id}:${attempt.process.pid}`,
               ...(attempt.process.exitCode === undefined || attempt.process.exitCode === null ? {} : { exitCode: attempt.process.exitCode }),
-              ...(attempt.process.exitCode === null ? { signal: 'terminated' } : {}),
+              ...(attempt.process.signal ? { signal: attempt.process.signal } : {}),
             })
           } else if (attempt.status !== 'running' && !isProcessAlive(attempt.process.pid)) {
             // A terminal legacy/recovered Attempt may have no OS exit callback.
@@ -1631,7 +1631,7 @@ async function persistAttemptProcessExit(
   const node = run?.nodes.find(item => item.id === nodeId)
   const attempt = node?.attempts.find(item => item.id === attemptId)
   if (!run || !node || !attempt || attempt.process?.pid !== exit.pid) return
-  attempt.process = { ...attempt.process, endedAt: exit.endedAt, exitCode: exit.exitCode }
+  attempt.process = { ...attempt.process, endedAt: exit.endedAt, exitCode: exit.exitCode, signal: exit.signal }
   appendEvent(run, 'activity', `${node.id} · 进程退出 · PID ${exit.pid} · ${exit.exitCode === null ? `signal ${exit.signal ?? 'unknown'}` : `exit ${exit.exitCode}`}`, node.id, attempt.id, {
     processId: exit.pid,
     ...(exit.exitCode === null ? {} : { exitCode: exit.exitCode }),
