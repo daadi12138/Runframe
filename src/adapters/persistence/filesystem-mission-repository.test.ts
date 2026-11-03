@@ -22,6 +22,8 @@ test('persists missions and immutable, validated plan revisions', async () => {
     }
     await repository.savePlan(plan)
     assert.deepEqual(await repository.getLatestPlan(mission.id), plan)
+    assert.deepEqual(await repository.getPlanRevision(mission.id, 1), plan)
+    assert.equal(await repository.getPlanRevision(mission.id, 2), null)
     await assert.rejects(() => repository.savePlan(plan), /Expected plan revision 2/)
     await assert.rejects(() => repository.savePlan({
       ...plan, id: 'plan-invalid', revision: 2,
