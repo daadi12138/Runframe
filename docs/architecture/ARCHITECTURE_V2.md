@@ -104,6 +104,7 @@ Recovery invariants:
 ### Phase 2 — application services
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
 - [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
+- [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate.
 - [x] Add Mission and Plan REST APIs, plus a compatibility dispatch bridge that converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution.
 - [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
 - [ ] Route Mission Plan dispatch through the application layer and the capability-aware runtime registry.
@@ -127,7 +128,7 @@ Recovery invariants:
 - [x] Existing workflows and run manifests remain readable without migration; V2 storage is additive.
 - [x] DAG validation rejects duplicate IDs, missing dependencies, self-edges, duplicate dependencies, and cycles.
 - [x] Runtime adapters declare capabilities and reject unsupported operations clearly at the port boundary.
-- [x] Approval decisions are immutable and exact-scope; latest decision wins.
+- [x] Approval decisions are immutable and exact-scope; latest decision wins, and validation commands recheck the V2 decision at their execution gate.
 - [x] Event appends are persisted and fsynced before the compatibility manifest is committed.
 - [x] Timeline events can be replayed from the durable journal after SSE notifications are lost.
 - [x] No new destructive Git action is introduced by V2 persistence or planning.
