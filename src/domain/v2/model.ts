@@ -111,6 +111,7 @@ export interface ProcessTreeNode {
   startedAt: string
   endedAt?: string
   exitCode?: number
+  exitSignal?: string
 }
 
 export interface ExecutionEvent<TPayload = unknown> {
