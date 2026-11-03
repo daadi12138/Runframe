@@ -19,11 +19,13 @@ export async function GET() {
     const reconciled = await Promise.all(missions.map(async mission => {
       if (!mission.activeRunId) return mission
       const run = await getRun(mission.activeRunId)
-      const status = run?.status === 'cancelled'
-        ? 'cancelled'
-        : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
-          ? 'review'
-          : mission.status
+      const status = mission.status !== 'running'
+        ? mission.status
+        : run?.status === 'cancelled'
+          ? 'cancelled'
+          : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
+            ? 'review'
+            : mission.status
       if (status === mission.status) return mission
       const updated = { ...mission, status, updatedAt: new Date().toISOString() }
       await repository.saveMission(updated)
