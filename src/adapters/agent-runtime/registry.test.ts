@@ -36,3 +36,18 @@ test('lists runtimes deterministically and disposes registered adapters', async 
   assert.equal(disposed, true)
   assert.equal(registry.list().length, 0)
 })
+
+test('rejects runtimes that declare cancellation without a cancel operation', () => {
+  const registry = new AgentRuntimeRegistry()
+  const invalid = runtime({ cancel: undefined }) as unknown as AgentRuntime
+  assert.throws(() => registry.register(invalid), /declares cancellation support/)
+})
+
+test('disposes the previous adapter when replacing a runtime', async () => {
+  let disposed = false
+  const registry = new AgentRuntimeRegistry()
+  registry.register(runtime({ async dispose() { disposed = true } }))
+  await registry.replace(runtime())
+  assert.equal(disposed, true)
+  assert.equal(registry.get('codex').id, 'codex')
+})
