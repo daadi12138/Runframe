@@ -24,6 +24,7 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
   const [executionMode, setExecutionMode] = useState<'read_only' | 'workspace_write'>('read_only')
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [linkedRunStatus, setLinkedRunStatus] = useState<string | null>(null)
+  const [deliveryApproved, setDeliveryApproved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const refreshMissions = useCallback(async () => {
@@ -62,8 +63,11 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
     const loadStatus = async () => {
       try {
         const response = await fetch(`/api/runs/${encodeURIComponent(selectedMission.activeRunId!)}`)
-        const run = response.ok ? await response.json() as { status: string } : null
-        if (!cancelled) setLinkedRunStatus(run?.status ?? null)
+        const run = response.ok ? await response.json() as { status: string; logs?: string[]; deliveryApproval?: unknown } : null
+        if (!cancelled) {
+          setLinkedRunStatus(run?.status ?? null)
+          setDeliveryApproved(Boolean(run && run.status === 'succeeded' && !run.deliveryApproval && run.logs?.some(log => log.includes('交付已批准'))))
+        }
       } catch {
         if (!cancelled) setLinkedRunStatus(null)
       }
@@ -72,6 +76,19 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
     const timer = window.setInterval(loadStatus, 2500)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [selectedMission?.activeRunId])
+
+  const requestDeliveryReview = async () => {
+    if (!selectedId) return
+    setBusy(true); setError(null)
+    try {
+      const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}/delivery`, { method: 'POST' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '申请交付审批失败')
+      setLinkedRunStatus(result.run.status)
+      await refreshMissions()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { setBusy(false) }
+  }
 
   const markDelivered = async () => {
     if (!selectedId) return
@@ -175,8 +192,14 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
               <div style={{ marginTop: 5 }}>状态：{selectedMission.status}</div>
               <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>ID：{selectedMission.id}</div>
               {selectedMission.activeRunId && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>Run：{selectedMission.activeRunId}</div>}
-              {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && (
-                <button style={{ ...buttonStyle, width: '100%', marginTop: 8 }} disabled={busy} onClick={() => void markDelivered()}>确认交付完成</button>
+              {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && !deliveryApproved && (
+                <button style={{ ...buttonStyle, width: '100%', marginTop: 8 }} disabled={busy} onClick={() => void requestDeliveryReview()}>申请交付审批</button>
+              )}
+              {selectedMission.status === 'review' && linkedRunStatus === 'awaiting_delivery' && (
+                <div style={{ marginTop: 8, color: 'var(--muted)' }}>交付变更已生成，请在执行时间线中检查 Diff 并批准或拒绝。</div>
+              )}
+              {selectedMission.status === 'review' && deliveryApproved && (
+                <button style={{ ...buttonStyle, width: '100%', marginTop: 8 }} disabled={busy} onClick={() => void markDelivered()}>确认 Mission 已交付</button>
               )}
             </div>
           )}
