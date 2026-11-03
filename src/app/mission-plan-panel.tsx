@@ -97,7 +97,7 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
   }
 
   const startExecution = async () => {
-    if (!selectedId || !plan || selectedMission?.status !== 'planned') return
+    if (!selectedId || !plan || !(selectedMission?.status === 'planned' || selectedMission?.status === 'review')) return
     setBusy(true); setError(null)
     try {
       const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}/run`, {
@@ -187,7 +187,7 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
               <option value="read_only">只读执行</option>
               <option value="workspace_write">允许 Worktree 写入</option>
             </select>
-            <button style={buttonStyle} disabled={busy || !selectedId || !plan || selectedMission?.status !== 'planned'} onClick={() => void startExecution()}>启动此 Plan</button>
+            <button style={buttonStyle} disabled={busy || !selectedId || !plan || selectedMission?.status !== 'planned'} onClick={() => void startExecution()}>{selectedMission?.status === 'review' ? '重新执行 Plan' : '启动此 Plan'}</button>
           </div>
           {activeRunId && <div style={{ fontSize: 11, color: 'var(--muted)' }}>最近启动的 Run：<code>{activeRunId}</code></div>}
         </div>
