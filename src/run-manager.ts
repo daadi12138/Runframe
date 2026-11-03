@@ -1633,7 +1633,10 @@ async function persistAttemptProcess(runId: string, nodeId: string, attemptId: s
   const run = await getRun(runId)
   const node = run?.nodes.find(item => item.id === nodeId)
   const attempt = node?.attempts.find(item => item.id === attemptId)
-  if (!run || !node || !attempt) return
+  if (!run || !node || !attempt) throw new Error('Attempt disappeared before its CLI process could be persisted.')
+  if (run.status !== 'running' || node.state !== 'running' || attempt.status !== 'running') {
+    throw new Error('Attempt was cancelled or stopped before its CLI process could be attached.')
+  }
   attempt.process = process
   await saveRun(run)
 }
@@ -2086,7 +2089,12 @@ function parseClaudeResult(stdout: string): string | undefined {
 async function runProcess(command: string, args: string[], cwd: string, timeoutMs: number, attemptId?: string, options: RunProcessOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env: options.env ?? process.env, detached: process.platform !== 'win32', stdio: [options.stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] }); if (attemptId) activeProcesses.set(attemptId, child)
-    const spawnCallback = child.pid && options.onSpawn ? Promise.resolve(options.onSpawn({ pid: child.pid, commandHash: hash(JSON.stringify({ command, args, cwd })), startedAt: new Date().toISOString() })) : Promise.resolve()
+    const spawnCallback = child.pid && options.onSpawn
+      ? Promise.resolve(options.onSpawn({ pid: child.pid, commandHash: hash(JSON.stringify({ command, args, cwd })), startedAt: new Date().toISOString() })).catch(error => {
+        terminateProcess(child, 'SIGTERM')
+        throw error
+      })
+      : Promise.resolve()
     child.stdout!.setEncoding('utf8')
     child.stderr!.setEncoding('utf8')
     let stdout = ''; let stderr = ''; let stdoutRemainder = ''; let callbacks = Promise.resolve(); let callbackError: unknown; let remainderQueued = false; const maxOutput = 2_000_000; const maxLineLength = options.maxLineLength ?? maxOutput
