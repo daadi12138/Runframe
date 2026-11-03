@@ -58,6 +58,11 @@ export function projectProcessTree(events: readonly ExecutionEvent[]): ProcessTr
         command: payload.command,
         startedAt: event.occurredAt,
       })
+    } else if (event.kind === 'session.output' && isRecord(event.payload) && typeof event.payload.id === 'string' && typeof event.payload.nativeSessionId === 'string') {
+      const existing = nodes.get(event.payload.id)
+      if (!existing) throw new Error(`Session identity event references unknown node: ${event.payload.id}`)
+      if (existing.runId !== event.runId) throw new Error('Session identity event crosses Run boundaries.')
+      nodes.set(existing.id, { ...existing, sessionId: event.payload.nativeSessionId })
     } else if (event.kind === 'session.ended' || event.kind === 'process.exited') {
       if (!isRecord(event.payload) || typeof event.payload.id !== 'string') {
         throw new Error('Process terminal event must include a node id.')
