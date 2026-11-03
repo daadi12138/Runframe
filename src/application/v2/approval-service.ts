@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import type { Approval, ApprovalScope } from '../../domain/v2/model'
 import type { ApprovalRepository } from '../../ports/v2/approval-repository'
 
+const decisionQueues = new Map<string, Promise<unknown>>()
+
 function sameScope(left: ApprovalScope, right: ApprovalScope): boolean {
   return left.action === right.action
     && left.workspaceRoot === right.workspaceRoot
@@ -18,21 +20,31 @@ export class ApprovalService {
 
   async decide(scope: ApprovalScope, decision: Approval['decision']): Promise<Approval> {
     if (!scope.action.trim() || !scope.workspaceRoot.trim()) throw new Error('Approval action and workspace root are required.')
-    const previous = await this.latestDecision(scope)
-    const requestedAt = this.now()
-    const previousTime = previous ? Date.parse(previous.decidedAt) : Number.NEGATIVE_INFINITY
-    const decidedAt = requestedAt.getTime() <= previousTime
-      ? new Date(previousTime + 1).toISOString()
-      : requestedAt.toISOString()
-    const approval: Approval = {
-      id: this.createId(),
-      scope: { ...scope },
-      decision,
-      decidedAt,
-      decidedBy: 'user',
+    const key = JSON.stringify([scope.action, scope.workspaceRoot, scope.command ?? null, scope.inputDigest ?? null])
+    const previous = decisionQueues.get(key) ?? Promise.resolve()
+    const next = previous.catch(() => undefined).then(async () => {
+      const latest = await this.latestDecision(scope)
+      const requestedAt = this.now()
+      const previousTime = latest ? Date.parse(latest.decidedAt) : Number.NEGATIVE_INFINITY
+      const decidedAt = requestedAt.getTime() <= previousTime
+        ? new Date(previousTime + 1).toISOString()
+        : requestedAt.toISOString()
+      const approval: Approval = {
+        id: this.createId(),
+        scope: { ...scope },
+        decision,
+        decidedAt,
+        decidedBy: 'user',
+      }
+      await this.repository.create(approval)
+      return approval
+    })
+    decisionQueues.set(key, next)
+    try {
+      return await next
+    } finally {
+      if (decisionQueues.get(key) === next) decisionQueues.delete(key)
     }
-    await this.repository.create(approval)
-    return approval
   }
 
   async latestDecision(scope: ApprovalScope): Promise<Approval | null> {
