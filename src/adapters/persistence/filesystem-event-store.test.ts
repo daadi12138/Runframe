@@ -29,11 +29,21 @@ test('serializes concurrent appends for a run', async () => {
   const root = await mkdtemp(join(tmpdir(), 'runframe-event-concurrency-'))
   try {
     const store = new FilesystemExecutionEventStore({ rootDirectory: root })
-    const events = Array.from({ length: 12 }, (_, index) => ({
-      id: `event-${index + 1}`, runId: 'run-concurrent', sequence: index + 1,
-      kind: 'attempt.output' as const, occurredAt: new Date().toISOString(), payload: null,
+    await Promise.all(Array.from({ length: 12 }, async (_, worker) => {
+      const id = `event-worker-${worker}`
+      for (;;) {
+        const sequence = (await store.lastSequence('run-concurrent')) + 1
+        try {
+          await store.append({
+            id, runId: 'run-concurrent', sequence, kind: 'attempt.output',
+            occurredAt: new Date().toISOString(), payload: { worker },
+          })
+          return
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.startsWith('Expected event sequence')) throw error
+        }
+      }
     }))
-    await Promise.all(events.map(event => store.append(event)))
     assert.equal(await store.lastSequence('run-concurrent'), 12)
   } finally {
     await rm(root, { recursive: true, force: true })
