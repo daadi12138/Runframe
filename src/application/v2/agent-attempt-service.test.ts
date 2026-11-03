@@ -39,8 +39,10 @@ test('fails clearly when a runtime does not declare cancellation support', async
 test('rejects structured events from runtimes that did not declare the capability', async () => {
   const runtime = new OneShotCliAgentRuntime('bad-runtime', async request => ({ output: request.prompt }), async () => undefined)
   const unsafe = {
-    ...runtime,
+    id: runtime.id,
     capabilities: { ...runtime.capabilities, structuredEvents: false },
+    launch: (request: Parameters<typeof runtime.launch>[0]) => runtime.launch(request),
+    cancel: (sessionId: string) => runtime.cancel(sessionId),
     async *output(sessionId: string) {
       yield { sessionId, stream: 'system' as const, text: 'unexpected', occurredAt: '2026-01-01T00:00:00.000Z', event: { type: 'result', payload: { output: 'no' } } }
     },
