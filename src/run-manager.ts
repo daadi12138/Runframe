@@ -1510,7 +1510,7 @@ async function saveRun(run: RunSnapshot): Promise<void> {
             ...(trace.exitCode === undefined ? {} : { exitCode: trace.exitCode }),
           })
         }
-        if (omittedOutputCount > 0) {
+        if (omittedOutputCount > 0 && attempt.status !== 'running') {
           await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:output:omitted`, attempt.endedAt ?? attempt.startedAt, {
             id: sessionNodeId,
             sessionId: sessionNodeId,
