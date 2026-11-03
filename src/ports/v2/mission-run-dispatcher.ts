@@ -13,5 +13,6 @@ export interface MissionRunDispatchRequest {
 
 export interface MissionRunDispatcher {
   dispatch(request: MissionRunDispatchRequest): Promise<{ runId: string }>
+  getStatus(runId: string): Promise<string | null>
   cancel(runId: string): Promise<void>
 }
