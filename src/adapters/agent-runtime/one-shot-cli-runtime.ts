@@ -123,6 +123,7 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
         try {
           yield* queue.iterate(signal)
         } finally {
+          queue.close()
           sessions.delete(sessionId)
         }
       },
