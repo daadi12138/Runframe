@@ -43,7 +43,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const run = mission.activeRunId ? await getRun(mission.activeRunId) : null
       const approved = run?.status === 'succeeded'
         && !run.deliveryApproval
-        && Boolean(run.logs?.some(log => log.includes('交付已批准') || log.includes('未检测到文件变更')))
+        && Boolean(run.deliveryReceipt && ['approved', 'no_changes'].includes(run.deliveryReceipt.status))
       if (!approved) return Response.json({ error: 'Mission can be delivered only after the linked Run has passed delivery approval and applied its Worktree changes.' }, { status: 409 })
     }
     if (body.status === 'cancelled' && mission.activeRunId && mission.status === 'running') {
