@@ -23,7 +23,7 @@ const request = (): MissionRunDispatchRequest => {
 test('maps immutable Plan tasks, dependencies, assigned executors, and criteria', () => {
   const command = buildMissionRunCommand(request())
   assert.deepEqual(command.nodes.map(node => [node.id, node.executorId]), [['design', 'claude'], ['build', 'codex']])
-  assert.equal(command.nodes[0].prompt, 'Design\\n\\nAcceptance criterion: API contract')
+  assert.equal(command.nodes[0].prompt, 'Design\n\nAcceptance criterion: API contract')
   assert.deepEqual(command.edges, [{ from: 'design', to: 'build' }])
   assert.match(command.input.text, /Ship API/)
   assert.match(command.input.text, /Tests pass/)
