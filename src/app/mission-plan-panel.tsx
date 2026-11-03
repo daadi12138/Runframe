@@ -18,6 +18,7 @@ type MissionReviewEvidence = {
       state: string
       attempts: Array<{
         id: string
+        sessionId?: string
         attempt: number
         executorId: string
         status: string
@@ -400,7 +401,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
                     <span>{attempt.status}</span>
                   </div>
                   <div style={{ color: 'var(--muted)', marginTop: 3 }}>
-                    {attempt.executorId} · {attempt.id} · {new Date(attempt.startedAt).toLocaleTimeString()}
+                    {attempt.executorId} · {attempt.id}{attempt.sessionId ? ` · Session ${attempt.sessionId}` : ''} · {new Date(attempt.startedAt).toLocaleTimeString()}
                     {attempt.endedAt ? ` → ${new Date(attempt.endedAt).toLocaleTimeString()}` : ''}
                     {attempt.process?.pid ? ` · PID ${attempt.process.pid}` : ''}
                     {attempt.process?.exitCode === null ? ` · ${attempt.process.signal ?? 'exit status unknown'}` : attempt.process?.exitCode === undefined ? '' : ` · exit ${attempt.process.exitCode}`}
