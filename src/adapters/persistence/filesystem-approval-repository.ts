@@ -59,3 +59,8 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
     }
   }
 }
+
+export function createDefaultApprovalRepository(): FilesystemApprovalRepository {
+  const stateRoot = process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
+  return new FilesystemApprovalRepository(join(stateRoot, 'v2'))
+}
