@@ -6,6 +6,7 @@ export {
   diagnoseProject,
   importProject,
   isProjectCommandApproved,
+  isProjectCommandApprovedWithAudit,
   listRecentProjects,
   loadProject,
   projectCommandKeys,
