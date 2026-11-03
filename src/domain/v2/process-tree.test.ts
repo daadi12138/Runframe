@@ -58,3 +58,12 @@ test('rejects an empty process exit signal', () => {
   assert.equal(result.valid, false)
   assert.ok(result.errors.some(error => error.includes('invalid exit signal')))
 })
+
+test('rejects empty or oversized session identifiers', () => {
+  const result = validateProcessTree([
+    node('empty-session', { sessionId: '  ' }),
+    node('long-session', { sessionId: 's'.repeat(257) }),
+  ])
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some(error => error.includes('invalid session ID')))
+})
