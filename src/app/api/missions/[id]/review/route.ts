@@ -19,12 +19,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const run = await getRun(mission.activeRunId)
     if (!run) return Response.json({ error: 'Linked Run not found' }, { status: 404 })
-    if (run.mission?.missionId !== mission.id) {
+    const runMission = run.mission
+    if (!runMission || runMission.missionId !== mission.id) {
       return Response.json({ error: 'Linked Run provenance does not match this Mission.' }, { status: 409 })
     }
 
-    const plan = await repository.getPlanRevision(mission.id, run.mission.planRevision)
-    if (!plan || plan.id !== run.mission.planRevisionId) {
+    const plan = await repository.getPlanRevision(mission.id, runMission.planRevision)
+    if (!plan || plan.id !== runMission.planRevisionId) {
       return Response.json({ error: 'The exact Plan Revision referenced by this Run is missing or inconsistent.' }, { status: 409 })
     }
 
@@ -48,7 +49,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         startedAt: run.startedAt,
         endedAt: run.endedAt,
         branchName: run.branchName,
-        mission: run.mission,
+        mission: runMission,
         nodes: run.nodes.map(node => ({
           id: node.id,
           kind: node.kind,
