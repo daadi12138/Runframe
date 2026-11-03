@@ -233,7 +233,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               <div style={{ marginTop: 4 }}>验收标准：{selectedMission.acceptanceCriteria?.length ?? 0} 项</div>
               <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>ID：{selectedMission.id}</div>
               {selectedMission.activeRunId && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>Run：{selectedMission.activeRunId}</div>}
-              {(selectedMission.status === 'running' || selectedMission.status === 'review') && (
+              {selectedMission.status !== 'delivered' && selectedMission.status !== 'cancelled' && (
                 <button style={{ ...buttonStyle, width: '100%', marginTop: 8, color: 'var(--rose)' }} disabled={busy} onClick={() => void cancelMission()}>取消 Mission</button>
               )}
               {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && !deliveryApproved && (
