@@ -17,7 +17,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
     const updatedRun = await requestDeliveryApproval(run.id)
     if (!updatedRun) return Response.json({ error: 'Run not found' }, { status: 404 })
-    const updatedMission = { ...mission, status: 'review' as const, updatedAt: new Date().toISOString() }
+    const updatedMission = { ...mission, status: 'running' as const, updatedAt: new Date().toISOString() }
     await repository.saveMission(updatedMission)
     return Response.json({ mission: updatedMission, run: updatedRun }, { status: 201 })
   } catch (error) {
