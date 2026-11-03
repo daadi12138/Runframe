@@ -25,7 +25,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const nodes = plan.nodes.map(task => ({
       id: task.id,
       kind: 'Agent',
-      executorId: task.assignedAgentId || body.executorId,
+      executorId: body.executorId,
       prompt: [
         task.title,
         task.description ?? '',
