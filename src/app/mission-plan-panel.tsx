@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 'cancelled'
 type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string; acceptanceCriteria?: Array<{ id: string; description: string; required: boolean }> }
-type TaskRecord = { id: string; title: string; description?: string; acceptanceCriteria?: string[]; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
+type TaskRecord = { id: string; title: string; description?: string; acceptanceCriteria?: string[]; assignedAgentId?: 'codex' | 'claude'; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
 type MissionReviewEvidence = {
   plan: PlanRecord
@@ -68,6 +68,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDescription, setTaskDescription] = useState('')
   const [taskCriteriaText, setTaskCriteriaText] = useState('')
+  const [taskExecutorId, setTaskExecutorId] = useState<'inherit' | 'codex' | 'claude'>('inherit')
   const [dependencies, setDependencies] = useState<string[]>([])
   const [draftNodes, setDraftNodes] = useState<TaskRecord[]>([])
   const [busy, setBusy] = useState(false)
@@ -224,10 +225,11 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
       ...(taskCriteriaText.split(/\r?\n/).map(value => value.trim()).filter(Boolean).length
         ? { acceptanceCriteria: taskCriteriaText.split(/\r?\n/).map(value => value.trim()).filter(Boolean) }
         : {}),
+      ...(taskExecutorId === 'inherit' ? {} : { assignedAgentId: taskExecutorId }),
       status: 'pending',
       dependsOn: dependencies,
     }])
-    setTaskTitle(''); setTaskDescription(''); setTaskCriteriaText(''); setDependencies([])
+    setTaskTitle(''); setTaskDescription(''); setTaskCriteriaText(''); setTaskExecutorId('inherit'); setDependencies([])
   }
 
   const savePlan = async () => {
@@ -334,6 +336,11 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
           </div>
           <textarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} placeholder="任务说明（可选）" value={taskDescription} onChange={event => setTaskDescription(event.target.value)} />
           <textarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} placeholder="任务验收标准（每行一条，可选）" value={taskCriteriaText} onChange={event => setTaskCriteriaText(event.target.value)} />
+          <select style={inputStyle} value={taskExecutorId} onChange={event => setTaskExecutorId(event.target.value as 'inherit' | 'codex' | 'claude')} aria-label="任务执行器">
+            <option value="inherit">继承 Mission 默认执行器（{executorId}）</option>
+            <option value="codex">Codex</option>
+            <option value="claude">Claude Code</option>
+          </select>
           {draftNodes.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {draftNodes.map((node, index) => (
@@ -342,8 +349,13 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{node.title}</div>
                     {node.description && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>{node.description}</div>}
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>依赖：{node.dependsOn.length ? node.dependsOn.map(id => draftNodes.find(item => item.id === id)?.title ?? id).join(', ') : '无'} · 验收：{node.acceptanceCriteria?.length ?? 0} 项</div>
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>依赖：{node.dependsOn.length ? node.dependsOn.map(id => draftNodes.find(item => item.id === id)?.title ?? id).join(', ') : '无'} · 验收：{node.acceptanceCriteria?.length ?? 0} 项 · 执行器：{node.assignedAgentId ?? ('继承 ' + executorId)}</div>
                   </div>
+                  <select style={{ ...inputStyle, width: 116, padding: '6px 7px', fontSize: 10 }} value={node.assignedAgentId ?? 'inherit'} aria-label={"为 " + node.title + " 选择执行器"} onChange={event => setDraftNodes(nodes => nodes.map(item => item.id === node.id ? { ...item, ...(event.target.value === 'inherit' ? { assignedAgentId: undefined } : { assignedAgentId: event.target.value as 'codex' | 'claude' }) } : item))}>
+                    <option value="inherit">继承默认</option>
+                    <option value="codex">Codex</option>
+                    <option value="claude">Claude</option>
+                  </select>
                   <span className="status-pill pending">{node.status}</span>
                   <button style={{ ...buttonStyle, padding: '4px 8px' }} onClick={() => setDraftNodes(nodes => nodes.filter(item => item.id !== node.id).map(item => ({ ...item, dependsOn: item.dependsOn.filter(id => id !== node.id) })))}>移除</button>
                 </div>
