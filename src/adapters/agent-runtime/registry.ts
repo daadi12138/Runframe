@@ -18,8 +18,10 @@ export class AgentRuntimeRegistry {
   }
 
   private validateRuntime(runtime: AgentRuntime): void {
-    if (!runtime.id.trim()) throw new Error('Agent runtime ID must not be empty.')
-    if (!runtime.capabilities || Object.values(runtime.capabilities).some(value => typeof value !== 'boolean')) {
+    if (!runtime || typeof runtime !== 'object') throw new Error('Agent runtime must be an object.')
+    if (typeof runtime.id !== 'string' || !runtime.id.trim()) throw new Error('Agent runtime ID must not be empty.')
+    const capabilityKeys = ['streamingOutput', 'structuredEvents', 'cancellation', 'pause', 'resume', 'attach', 'usageReporting'] as const
+    if (!runtime.capabilities || capabilityKeys.some(key => typeof runtime.capabilities[key] !== 'boolean')) {
       throw new Error(`Runtime "${runtime.id}" must declare every capability as a boolean.`)
     }
     if (typeof runtime.launch !== 'function' || typeof runtime.output !== 'function') {
