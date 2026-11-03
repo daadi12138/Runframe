@@ -58,11 +58,13 @@ export function projectProcessTree(events: readonly ExecutionEvent[]): ProcessTr
         command: payload.command,
         startedAt: event.occurredAt,
       })
-    } else if (event.kind === 'session.output' && isRecord(event.payload) && typeof event.payload.id === 'string' && typeof event.payload.nativeSessionId === 'string') {
+    } else if (event.kind === 'session.output' && isRecord(event.payload) && event.payload.metadataOnly === true && typeof event.payload.nativeSessionId === 'string') {
+      if (typeof event.payload.id !== 'string' || !event.payload.nativeSessionId.trim()) throw new Error('Session identity event has an invalid payload.')
       const existing = nodes.get(event.payload.id)
       if (!existing) throw new Error(`Session identity event references unknown node: ${event.payload.id}`)
       if (existing.runId !== event.runId) throw new Error('Session identity event crosses Run boundaries.')
-      nodes.set(existing.id, { ...existing, sessionId: event.payload.nativeSessionId })
+      if (event.attemptId && existing.attemptId && event.attemptId !== existing.attemptId) throw new Error('Session identity event crosses Attempt boundaries.')
+      nodes.set(existing.id, { ...existing, sessionId: event.payload.nativeSessionId.slice(0, 256) })
     } else if (event.kind === 'session.ended' || event.kind === 'process.exited') {
       if (!isRecord(event.payload) || typeof event.payload.id !== 'string') {
         throw new Error('Process terminal event must include a node id.')
