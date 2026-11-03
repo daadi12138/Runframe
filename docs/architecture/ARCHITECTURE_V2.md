@@ -1,6 +1,6 @@
 # Runframe Architecture V2
 
-**Status:** Incremental architecture RFC  
+**Status:** Incremental architecture RFC — Phase 1 implementation in progress  
 **Target branch:** `architecture-v2`  
 **Compatibility rule:** V2 is additive. Existing Run manifests, Workflow definitions, CLI integrations, and local state remain authoritative until an explicit migration is implemented.
 
@@ -93,9 +93,11 @@ Recovery invariants:
 - Do not change the existing Run manager or on-disk schema.
 
 ### Phase 1 — event journal and projections
-- Implement filesystem-backed append-only event storage with atomic writes and schema versioning.
-- Project legacy Run events into a unified execution timeline.
-- Add recovery reconciliation and idempotency keys.
+- [x] Implement filesystem-backed append-only JSONL event storage with schema versioning, per-run writer locking, sequence validation, replay, idempotency keys, and fsync-before-append completion.
+- [x] Add filesystem persistence for Mission records and immutable, validated Plan revisions.
+- [x] Add unit tests for graph validation, state transitions, event ordering, replay, idempotency, and concurrent writers.
+- [ ] Project legacy Run events into a unified execution timeline.
+- [ ] Add recovery reconciliation from journal evidence and integrate event writes into the legacy Run lifecycle.
 
 ### Phase 2 — application services
 - Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
