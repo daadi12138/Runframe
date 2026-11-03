@@ -365,6 +365,35 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               ))}
             </div>
           )}
+          {reviewEvidence.evidence.deliveryDiff.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Delivery Diff Evidence</div>
+              {reviewEvidence.evidence.deliveryDiff.map((change, index) => (
+                <div key={`${change.path}-${index}`} style={{ padding: '8px 0', borderTop: '1px solid var(--line)', fontSize: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <code style={{ overflowWrap: 'anywhere' }}>{change.path}</code>
+                    <span>{change.operation} · {change.classification}</span>
+                  </div>
+                  {change.conflicts.map((conflict, conflictIndex) => (
+                    <div key={conflictIndex} role="alert" style={{ marginTop: 5, color: 'var(--rose)' }}>
+                      冲突：{conflict.path} · {conflict.reason}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          {reviewEvidence.evidence.workspaceApprovalDecisions.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Workspace Approval Audit</div>
+              {reviewEvidence.evidence.workspaceApprovalDecisions.map(approval => (
+                <div key={approval.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderTop: '1px solid var(--line)', fontSize: 10 }}>
+                  <span>{approval.scope.action} · {approval.id}</span>
+                  <span style={{ color: approval.decision === 'granted' ? 'var(--green, var(--muted))' : 'var(--rose)' }}>{approval.decision}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {reviewEvidence.evidence.deliveryDiff.some(change => change.conflicts.length > 0) && (
             <div role="alert" style={{ marginTop: 10, color: 'var(--rose)', fontSize: 11 }}>
               检测到 {reviewEvidence.evidence.deliveryDiff.reduce((count, change) => count + change.conflicts.length, 0)} 个交付冲突；完成冲突处理前不要确认交付。
