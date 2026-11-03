@@ -3,11 +3,11 @@ import test from 'node:test'
 import { validateDiffReview, validateRelativePath } from './diff-review'
 
 test('normalizes safe relative paths and rejects traversal or absolute paths', () => {
-  assert.equal(validateRelativePath('src\\\\feature.ts'), 'src/feature.ts')
+  assert.equal(validateRelativePath('src\\feature.ts'), 'src/feature.ts')
   assert.throws(() => validateRelativePath('../secret'), /traversal/)
   assert.throws(() => validateRelativePath('src/../../secret'), /traversal/)
   assert.throws(() => validateRelativePath('/etc/passwd'), /relative/)
-  assert.throws(() => validateRelativePath('C:\\\\secret'), /relative/)
+  assert.throws(() => validateRelativePath('C:\\secret'), /relative/)
 })
 
 test('bounds diff preview bytes and path count', () => {
