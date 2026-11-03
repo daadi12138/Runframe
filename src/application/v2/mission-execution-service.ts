@@ -4,6 +4,8 @@ import { transitionMission } from '../../domain/v2/state-machine'
 import type { MissionRepository } from '../../ports/v2/mission-repository'
 import type { MissionRunDispatcher } from '../../ports/v2/mission-run-dispatcher'
 
+const dispatchQueues = new Map<string, Promise<unknown>>()
+
 export interface DispatchMissionOptions {
   executorId: string
   executionMode: 'read_only' | 'workspace_write'
@@ -22,6 +24,17 @@ export class MissionExecutionService {
   ) {}
 
   async dispatch(missionId: string, options: DispatchMissionOptions): Promise<DispatchMissionResult> {
+    const previous = dispatchQueues.get(missionId) ?? Promise.resolve()
+    const next = previous.catch(() => undefined).then(() => this.dispatchExclusive(missionId, options))
+    dispatchQueues.set(missionId, next)
+    try {
+      return await next
+    } finally {
+      if (dispatchQueues.get(missionId) === next) dispatchQueues.delete(missionId)
+    }
+  }
+
+  private async dispatchExclusive(missionId: string, options: DispatchMissionOptions): Promise<DispatchMissionResult> {
     const mission = await this.repository.getMission(missionId)
     if (!mission) throw new Error(`Mission not found: ${missionId}`)
     if (mission.status !== 'planned' && mission.status !== 'review') {
