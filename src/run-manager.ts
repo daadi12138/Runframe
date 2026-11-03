@@ -1573,7 +1573,8 @@ async function saveRun(run: RunSnapshot): Promise<void> {
             })
           }
         }
-        if (attempt.status !== 'running' && attempt.status !== 'paused') {
+        const processStillActive = Boolean(attempt.process?.pid && !attempt.process.endedAt)
+        if (attempt.status !== 'running' && attempt.status !== 'paused' && !processStillActive) {
           await appendRuntimeFact(attempt, 'session.ended', `session:${attempt.id}:ended`, attempt.endedAt ?? new Date().toISOString(), {
             id: sessionNodeId,
             ...(attempt.status === 'succeeded' ? { exitCode: 0 } : {}),
