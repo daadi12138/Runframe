@@ -7,6 +7,7 @@ import { AgentTool, ShellTool } from './tool-executor'
 import { resolveExecutorForRun, type ExecutorConfig } from './executor-config'
 import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
+import type { ExecutionEvent } from './domain/v2/model'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -543,7 +544,7 @@ export async function resumeInterruptedRuns(): Promise<void> {
     const run = await getRun(entry.name)
     if (!run || activeRuns.has(run.id) || (run.status !== 'running' && run.status !== 'preparing')) continue
 
-    let journal
+    let journal: ExecutionEvent[]
     try { journal = await eventStore.read(run.id) } catch {
       // A corrupt journal is not safe to resume from. Leave the Run untouched for inspection.
       continue
