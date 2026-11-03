@@ -1,4 +1,4 @@
-import { cancelRun, startRun } from '../../run-manager'
+import { cancelRun, getRun, startRun } from '../../run-manager'
 import type { MissionRunDispatcher, MissionRunDispatchRequest } from '../../ports/v2/mission-run-dispatcher'
 
 export class LegacyMissionRunDispatcher implements MissionRunDispatcher {
@@ -33,7 +33,7 @@ export class LegacyMissionRunDispatcher implements MissionRunDispatcher {
     return { runId: run.id }
   }
 
-  async cancel(runId: string): Promise<void> {
+  async getStatus(runId: string): Promise<string | null> {\n    return (await getRun(runId))?.status ?? null\n  }\n\n  async cancel(runId: string): Promise<void> {
     await cancelRun(runId)
   }
 }
