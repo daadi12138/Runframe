@@ -130,7 +130,7 @@ function createAgentRuntimeRegistry(runners: AgentRunnerRegistry<AgentRunner>): 
         }),
         onProcessStarted: async process => {
           await input.onProcessStarted?.(process)
-          emit({
+          await emit({
             sessionId: request.attemptId,
             stream: 'system',
             text: `OS process started · PID ${process.pid}`,
@@ -140,7 +140,7 @@ function createAgentRuntimeRegistry(runners: AgentRunnerRegistry<AgentRunner>): 
         },
         onProcessExited: async process => {
           await input.onProcessExited?.(process)
-          emit({
+          await emit({
             sessionId: request.attemptId,
             stream: 'system',
             text: `OS process exited · PID ${process.pid} · ${process.exitCode === null ? process.signal ?? 'signal' : process.exitCode}`,
