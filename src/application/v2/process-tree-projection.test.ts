@@ -17,12 +17,14 @@ test('projects nested session and subprocess lifecycle facts', () => {
   const tree = projectProcessTree([
     event(1, 'session.started', { id: 'session', kind: 'agent_session', sessionId: 's-1' }),
     event(2, 'process.started', { id: 'process', parentId: 'session', kind: 'os_process', processId: 321 }),
-    event(3, 'process.exited', { id: 'process', signal: 'SIGTERM' }),
-    event(4, 'session.ended', { id: 'session' }),
+    event(3, 'session.output', { id: 'session', nativeSessionId: 'codex-thread-1', metadataOnly: true }),
+    event(4, 'process.exited', { id: 'process', signal: 'SIGTERM' }),
+    event(5, 'session.ended', { id: 'session' }),
   ])
   assert.equal(tree.length, 2)
   assert.equal(tree.find(item => item.id === 'process')?.parentId, 'session')
   assert.equal(tree.find(item => item.id === 'process')?.exitSignal, 'SIGTERM')
+  assert.equal(tree.find(item => item.id === 'session')?.sessionId, 'codex-thread-1')
   assert.ok(tree.every(item => item.endedAt))
 })
 
