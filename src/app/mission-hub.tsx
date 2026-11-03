@@ -140,7 +140,7 @@ export function MissionHub({
   }, [syncMissionData])
 
   const activeRun = useMemo(() => {
-    return runs.find(r => r.id === (mission?.runId || activeRunId)) || runs[0] || null
+    return runs.find(r => r.id === (activeRunId || mission?.runId)) || runs[0] || null
   }, [runs, mission, activeRunId])
 
   useEffect(() => {
@@ -538,7 +538,7 @@ export function MissionHub({
 
       {/* 4. Tab Content Area */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {activeTab === 'v2-plan' && <MissionPlanPanel />}
+        {activeTab === 'v2-plan' && <MissionPlanPanel onRunStarted={runId => { setActiveRunId(runId); setActiveTab('timeline') }} />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
