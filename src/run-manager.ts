@@ -8,7 +8,7 @@ import { resolveExecutorForRun, type ExecutorConfig } from './executor-config'
 import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
 import type { ExecutionEvent } from './domain/v2/model'
-import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
+import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, recordProjectCommandDecision, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
 export type RunNodeState = 'idle' | 'running' | 'paused' | 'success' | 'waiting' | 'failed' | 'cancelled' | 'skipped'
@@ -309,8 +309,9 @@ export async function approveRun(id: string): Promise<RunSnapshot | null> {
     if (project && projectCommand && sameCommand(projectCommand, pending.command)) {
       run.project = structuredClone(await approveProjectCommand(pending.commandKey, pending.command))
     } else {
-      // Commands detected only after an Agent creates a project belong to this
-      // run's Worktree. Approval must not add them to the original project.
+      // Commands detected only inside this run remain Worktree-scoped. Persist
+      // the immutable decision without adding a grant to the original project.
+      await recordProjectCommandDecision(run.project, pending.commandKey, pending.command, 'granted', run.worktreePath ?? run.project.repositoryPath)
       run.project.environment.commandAllowlist[pending.commandKey] = { ...pending.command, approvedAt: new Date().toISOString() }
     }
     approval.state = 'idle'
