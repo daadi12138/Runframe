@@ -99,7 +99,7 @@ Recovery invariants:
 - [x] Project legacy Run events into a replayable V2 execution timeline; the legacy Run manifest remains the compatibility projection.
 - [x] Integrate journal appends into serialized Run manifest writes so the journal is durable before the manifest revision is committed.
 - [x] Expose a paginated timeline read API and render the persisted event stream in the Mission Hub.
-- [ ] Reconcile active attempts and restart recovery directly from journal evidence; the current process recovery still uses the legacy manifest as its operational snapshot.
+- [x] Reconcile active attempt starts, process attachment, pause/resume, completion, and failure from journal evidence during restart; the legacy manifest remains the broader compatibility snapshot.
 
 ### Phase 2 — application services
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
@@ -135,7 +135,7 @@ Recovery invariants:
 - [x] Event appends are persisted and fsynced before the compatibility manifest is committed.
 - [x] Timeline events can be replayed from the durable journal after SSE notifications are lost.
 - [x] No new destructive Git action is introduced by V2 persistence or planning.
-- [ ] Active-attempt recovery is reconstructed from journal evidence rather than only legacy manifest state.
+- [x] Active-attempt recovery reconciles the latest attempt facts from the durable journal, while retaining the legacy manifest as the compatibility snapshot for other Run state.
 - [ ] The Mission Plan is dispatchable through V2 orchestration and runtime adapters.
 
 ## 10. Initial repository boundaries
