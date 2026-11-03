@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Mission, PlanRevision } from '../../domain/v2/model'
+import { validatePlanGraph } from '../../domain/v2/graph'
 import type { MissionRepository } from '../../ports/v2/mission-repository'
 
 const safeId = (id: string): string => {
@@ -91,9 +92,14 @@ export class FilesystemMissionRepository implements MissionRepository {
   async savePlan(plan: PlanRevision): Promise<void> {
     if (!plan.id?.trim() || !plan.missionId?.trim()) throw new Error('Plan and mission IDs are required.')
     if (!Number.isSafeInteger(plan.revision) || plan.revision < 1) throw new Error('Plan revision must be a positive integer.')
+    if (!(await this.getMission(plan.missionId))) throw new Error(`Mission not found: ${plan.missionId}`)
+    const graph = validatePlanGraph(plan.nodes)
+    if (!graph.valid) throw new Error(`Invalid plan graph: ${graph.errors.join('; ')}`)
+    if (!Number.isFinite(Date.parse(plan.createdAt))) throw new Error('Plan createdAt must be a valid date.')
     const latest = await this.getLatestPlan(plan.missionId)
-    if (latest && plan.revision <= latest.revision) {
-      throw new Error(`Plan revision must increase beyond ${latest.revision}.`)
+    const expectedRevision = (latest?.revision ?? 0) + 1
+    if (plan.revision !== expectedRevision) {
+      throw new Error(`Expected plan revision ${expectedRevision}, received ${plan.revision}.`)
     }
     const path = join(this.plansDirectory(plan.missionId), `revision-${plan.revision}.json`)
     if (await readJson<PlanRevision>(path)) throw new Error(`Plan revision already exists: ${plan.revision}`)
