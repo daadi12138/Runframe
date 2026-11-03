@@ -19,6 +19,54 @@ async function readJson<T>(path: string): Promise<T | null> {
   }
 }
 
+const missionStatuses = new Set(['draft', 'planned', 'running', 'review', 'delivered', 'cancelled'])
+const taskStatuses = new Set(['pending', 'ready', 'running', 'succeeded', 'failed', 'blocked', 'cancelled'])
+
+function validateMissionRecord(value: unknown, expectedId?: string): Mission {
+  if (!value || typeof value !== 'object') throw new Error('Corrupt Mission record: expected an object.')
+  const mission = value as Partial<Mission>
+  if (typeof mission.id !== 'string' || !mission.id.trim() || (expectedId && mission.id !== expectedId)) throw new Error('Corrupt Mission record: invalid ID.')
+  if (typeof mission.title !== 'string' || !mission.title.trim() || typeof mission.description !== 'string') throw new Error(`Corrupt Mission ${mission.id}: invalid title or description.`)
+  if (!missionStatuses.has(mission.status ?? '')) throw new Error(`Corrupt Mission ${mission.id}: invalid status.`)
+  if (!Array.isArray(mission.acceptanceCriteria)) throw new Error(`Corrupt Mission ${mission.id}: acceptance criteria must be an array.`)
+  const criterionIds = new Set<string>()
+  for (const criterion of mission.acceptanceCriteria) {
+    if (!criterion || typeof criterion.id !== 'string' || !criterion.id.trim() || typeof criterion.description !== 'string' || !criterion.description.trim() || typeof criterion.required !== 'boolean') {
+      throw new Error(`Corrupt Mission ${mission.id}: invalid acceptance criterion.`)
+    }
+    if (criterionIds.has(criterion.id)) throw new Error(`Corrupt Mission ${mission.id}: duplicate acceptance criterion ${criterion.id}.`)
+    criterionIds.add(criterion.id)
+  }
+  if (!Number.isFinite(Date.parse(mission.createdAt ?? '')) || !Number.isFinite(Date.parse(mission.updatedAt ?? ''))) {
+    throw new Error(`Corrupt Mission ${mission.id}: invalid timestamps.`)
+  }
+  if (mission.activeRunId !== undefined && (typeof mission.activeRunId !== 'string' || !mission.activeRunId.trim())) {
+    throw new Error(`Corrupt Mission ${mission.id}: invalid active Run reference.`)
+  }
+  return mission as Mission
+}
+
+function validatePlanRecord(value: unknown, expectedMissionId: string): PlanRevision {
+  if (!value || typeof value !== 'object') throw new Error('Corrupt Plan Revision: expected an object.')
+  const plan = value as Partial<PlanRevision>
+  if (typeof plan.id !== 'string' || !plan.id.trim() || plan.missionId !== expectedMissionId) throw new Error('Corrupt Plan Revision: invalid identity.')
+  if (!Number.isSafeInteger(plan.revision) || (plan.revision ?? 0) < 1) throw new Error(`Corrupt Plan Revision ${plan.id}: invalid revision.`)
+  if (!Number.isFinite(Date.parse(plan.createdAt ?? ''))) throw new Error(`Corrupt Plan Revision ${plan.id}: invalid timestamp.`)
+  if (!Array.isArray(plan.nodes) || plan.nodes.length === 0) throw new Error(`Corrupt Plan Revision ${plan.id}: task nodes are required.`)
+  for (const node of plan.nodes) {
+    if (!node || typeof node.id !== 'string' || !node.id.trim() || typeof node.title !== 'string' || !node.title.trim()
+      || !taskStatuses.has(node.status) || !Array.isArray(node.dependsOn) || node.dependsOn.some(id => typeof id !== 'string')) {
+      throw new Error(`Corrupt Plan Revision ${plan.id}: invalid task node.`)
+    }
+    if (node.acceptanceCriteria !== undefined && (!Array.isArray(node.acceptanceCriteria) || node.acceptanceCriteria.some(item => typeof item !== 'string'))) {
+      throw new Error(`Corrupt Plan Revision ${plan.id}: invalid task acceptance criteria.`)
+    }
+  }
+  const graph = validatePlanGraph(plan.nodes)
+  if (!graph.valid) throw new Error(`Corrupt Plan Revision ${plan.id}: ${graph.errors.join('; ')}`)
+  return plan as PlanRevision
+}
+
 async function syncDirectory(path: string): Promise<void> {
   if (process.platform === 'win32') return
   const handle = await open(path, 'r')
@@ -53,7 +101,8 @@ export class FilesystemMissionRepository implements MissionRepository {
   }
 
   async getMission(missionId: string): Promise<Mission | null> {
-    return readJson<Mission>(this.missionPath(missionId))
+    const value = await readJson<unknown>(this.missionPath(missionId))
+    return value === null ? null : validateMissionRecord(value, missionId)
   }
 
   async listMissions(): Promise<Mission[]> {
@@ -90,19 +139,19 @@ export class FilesystemMissionRepository implements MissionRepository {
       .filter(Number.isSafeInteger)
       .sort((left, right) => right - left)
     for (const revision of revisions) {
-      const plan = await readJson<PlanRevision>(join(directory, `revision-${revision}.json`))
-      if (plan) return plan
+      const plan = await readJson<unknown>(join(directory, `revision-${revision}.json`))
+      if (plan) {
+        const validated = validatePlanRecord(plan, missionId)
+        if (validated.revision !== revision) throw new Error(`Corrupt Plan Revision ${validated.id}: filename/revision mismatch.`)
+        return validated
+      }
     }
     return null
   }
 
   async savePlan(plan: PlanRevision): Promise<void> {
-    if (!plan.id?.trim() || !plan.missionId?.trim()) throw new Error('Plan and mission IDs are required.')
-    if (!Number.isSafeInteger(plan.revision) || plan.revision < 1) throw new Error('Plan revision must be a positive integer.')
+    validatePlanRecord(plan, plan.missionId)
     if (!(await this.getMission(plan.missionId))) throw new Error(`Mission not found: ${plan.missionId}`)
-    const graph = validatePlanGraph(plan.nodes)
-    if (!graph.valid) throw new Error(`Invalid plan graph: ${graph.errors.join('; ')}`)
-    if (!Number.isFinite(Date.parse(plan.createdAt))) throw new Error('Plan createdAt must be a valid date.')
     const latest = await this.getLatestPlan(plan.missionId)
     const expectedRevision = (latest?.revision ?? 0) + 1
     if (plan.revision !== expectedRevision) {
