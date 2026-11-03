@@ -11,6 +11,7 @@ export {
   loadProject,
   projectCommandKeys,
   revokeProjectCommand,
+  recordProjectCommandDecision,
   resolveGitProject,
   type CommandApproval,
   type CommandSpec,
