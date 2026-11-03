@@ -41,3 +41,9 @@ test('rejects a Plan belonging to a different Mission', () => {
   input.plan = { ...input.plan, missionId: 'mission-other' }
   assert.throws(() => buildMissionRunCommand(input), /provenance/)
 })
+
+test('rejects task content changes even when task IDs remain the same', () => {
+  const input = request()
+  input.tasks = input.tasks.map(task => task.id === 'build' ? { ...task, title: 'Altered title' } : task)
+  assert.throws(() => buildMissionRunCommand(input), /exactly match/)
+})
