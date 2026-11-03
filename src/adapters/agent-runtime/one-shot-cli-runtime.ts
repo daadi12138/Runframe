@@ -110,7 +110,9 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
   }
 
   async cancel(sessionId: string): Promise<void> {
-    if (!this.sessions.has(sessionId)) return
+    // The output consumer may have failed and closed its queue before the
+    // application service invokes cancellation. Always delegate to the
+    // process controller; terminating an already-finished Attempt is a no-op.
     await this.cancelExecution(sessionId)
   }
 
