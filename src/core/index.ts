@@ -216,7 +216,6 @@ export { inspectRunSchedule, validateSchedulerGraph, type ScheduledNode, type Sc
 export { AgentAttemptService } from '../application/v2/agent-attempt-service'
 export { AgentExecutionPolicy, type AgentExecutionPolicyNode } from '../application/v2/agent-execution-policy'
 export { buildMissionRunCommand, type MissionRunCommand } from '../application/v2/mission-run-command'
-export { activeProcesses, isProcessAlive, terminateProcess, terminateRecordedProcess } from '../adapters/process/process-supervisor'
 export { reconcileInterruptedAttempts, type AttemptRecoveryResult, type RecoverableAttempt, type RecoverableNode } from '../application/v2/attempt-recovery'
 
 export { reconcileMissionRun, type LinkedRunStatus, type MissionRunLink } from '../application/v2/mission-reconciliation'
