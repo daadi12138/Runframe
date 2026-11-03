@@ -18,13 +18,17 @@ export interface AgentOutputEvent {
   stream: 'stdout' | 'stderr' | 'system'
   text: string
   occurredAt: string
+  /** Present only when structuredEvents is declared by the runtime. */
+  event?: { type: string; payload: unknown }
+  /** Absent means usage is unknown; it must never be interpreted as zero. */
+  usage?: { inputTokens?: number; outputTokens?: number; costUsd?: number }
 }
 
 export interface AgentRuntime {
   readonly id: string
   readonly capabilities: AgentCapabilities
   launch(request: AgentLaunchRequest): Promise<AgentSessionHandle>
-  cancel(sessionId: string): Promise<void>
+  cancel?(sessionId: string): Promise<void>
   output(sessionId: string, signal?: AbortSignal): AsyncIterable<AgentOutputEvent>
   pause?(sessionId: string): Promise<void>
   resume?(sessionId: string): Promise<void>
