@@ -1455,7 +1455,7 @@ async function saveRun(run: RunSnapshot): Promise<void> {
     }).filter((key): key is string => Boolean(key)))
     const appendRuntimeFact = async (
       attempt: StepAttempt,
-      kind: 'session.started' | 'session.ended' | 'process.started' | 'process.exited',
+      kind: 'session.started' | 'session.output' | 'session.ended' | 'process.started' | 'process.exited',
       key: string,
       occurredAt: string,
       payload: Record<string, unknown>,
@@ -1484,6 +1484,19 @@ async function saveRun(run: RunSnapshot): Promise<void> {
           attemptId: attempt.id,
           sessionId: sessionNodeId,
         })
+        for (const trace of attempt.trace ?? []) {
+          const content = trace.content ?? trace.command ?? trace.status
+          if (!content) continue
+          await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:output:${trace.seq}`, trace.occurredAt, {
+            id: sessionNodeId,
+            sessionId: sessionNodeId,
+            traceSequence: trace.seq,
+            traceKind: trace.kind,
+            text: content,
+            ...(trace.toolName ? { toolName: trace.toolName } : {}),
+            ...(trace.exitCode === undefined ? {} : { exitCode: trace.exitCode }),
+          })
+        }
         if (attempt.process?.pid) {
           await appendRuntimeFact(attempt, 'process.started', `process:${attempt.id}:${attempt.process.pid}:started`, attempt.process.startedAt, {
             id: `process:${attempt.id}:${attempt.process.pid}`,
