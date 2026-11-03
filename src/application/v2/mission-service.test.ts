@@ -31,6 +31,7 @@ test('rejects invalid plans and illegal mission transitions', async () => {
   const repository = new MemoryMissionRepository()
   const service = new MissionService(repository, () => new Date(), () => 'mission-invalid')
   const mission = await service.create({ title: 'Test' })
+  await assert.rejects(() => service.savePlan(mission.id, []), /at least one task node/)
   await assert.rejects(() => service.savePlan(mission.id, [
     { id: 'a', title: 'A', status: 'pending', dependsOn: ['missing'] },
   ]), /Invalid plan graph/)
