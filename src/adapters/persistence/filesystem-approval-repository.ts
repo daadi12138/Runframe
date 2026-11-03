@@ -8,6 +8,22 @@ const safeId = (id: string): string => {
   return id
 }
 
+function validateApprovalRecord(value: unknown, expectedId?: string): Approval {
+  if (!value || typeof value !== 'object') throw new Error('Corrupt approval record: expected an object.')
+  const approval = value as Partial<Approval>
+  if (typeof approval.id !== 'string' || !approval.id.trim() || (expectedId && approval.id !== expectedId)) throw new Error('Corrupt approval record: invalid ID.')
+  const scope = approval.scope
+  if (!scope || typeof scope.action !== 'string' || !scope.action.trim()
+    || typeof scope.workspaceRoot !== 'string' || !scope.workspaceRoot.trim()) {
+    throw new Error(`Corrupt approval ${approval.id}: invalid scope.`)
+  }
+  if (scope.command !== undefined && typeof scope.command !== 'string') throw new Error(`Corrupt approval ${approval.id}: invalid command scope.`)
+  if (scope.inputDigest !== undefined && typeof scope.inputDigest !== 'string') throw new Error(`Corrupt approval ${approval.id}: invalid input digest.`)
+  if (approval.decision !== 'granted' && approval.decision !== 'denied') throw new Error(`Corrupt approval ${approval.id}: invalid decision.`)
+  if (approval.decidedBy !== 'user' || !Number.isFinite(Date.parse(approval.decidedAt ?? ''))) throw new Error(`Corrupt approval ${approval.id}: invalid decision metadata.`)
+  return approval as Approval
+}
+
 export class FilesystemApprovalRepository implements ApprovalRepository {
   constructor(private readonly rootDirectory: string) {}
 
@@ -17,7 +33,7 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
 
   async get(approvalId: string): Promise<Approval | null> {
     try {
-      return JSON.parse(await readFile(this.path(approvalId), 'utf8')) as Approval
+      return validateApprovalRecord(JSON.parse(await readFile(this.path(approvalId), 'utf8')), approvalId)
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
       throw error
@@ -32,7 +48,7 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
       throw error
     }
     const records = await Promise.all(files.filter(file => file.endsWith('.json')).map(async file => {
-      return JSON.parse(await readFile(join(directory, file), 'utf8')) as Approval
+      return validateApprovalRecord(JSON.parse(await readFile(join(directory, file), 'utf8')), file.slice(0, -'.json'.length))
     }))
     return records
       .filter(record => workspaceRoot === undefined || record.scope.workspaceRoot === workspaceRoot)
