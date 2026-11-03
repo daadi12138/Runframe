@@ -21,7 +21,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     const status = message.startsWith('Mission not found:') ? 404
-      : message.includes('must be planned') || message.includes('no saved Plan') || message.includes('invalid') ? 409
+      : message.includes('must be planned') || message.includes('no saved Plan') || message.includes('invalid')
+        || message.includes('still active or awaiting approval') || message.includes('references a Run') ? 409
         : 400
     return Response.json({ error: message }, { status })
   }
