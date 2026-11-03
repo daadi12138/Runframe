@@ -54,6 +54,13 @@ export type RunWorkspaceRun = {
 }
 
 type HubTab = 'kanban' | 'v2-plan' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
+type PersistedExecutionEvent = {
+  id: string
+  sequence: number
+  kind: string
+  occurredAt: string
+  payload: { message?: string; nodeId?: string; details?: Record<string, unknown>; legacyType?: string }
+}
 
 const stageColumns: Array<{ id: TicketStage; label: string; icon: typeof Clock; color: string }> = [
   { id: 'backlog', label: '待办排期', icon: Layers, color: '#94a3b8' },
@@ -88,6 +95,7 @@ export function MissionHub({
   const [missionsList, setMissionsList] = useState<SuperagentMission[]>([])
   const [tickets, setTickets] = useState<OrchestratedTicket[]>([])
   const [runs, setRuns] = useState<RunWorkspaceRun[]>([])
+  const [executionEvents, setExecutionEvents] = useState<PersistedExecutionEvent[]>([])
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [goalInput, setGoalInput] = useState('')
   const [executionMode, setExecutionMode] = useState<ExecutionMode>('autonomous')
@@ -134,6 +142,22 @@ export function MissionHub({
   const activeRun = useMemo(() => {
     return runs.find(r => r.id === (mission?.runId || activeRunId)) || runs[0] || null
   }, [runs, mission, activeRunId])
+
+  useEffect(() => {
+    if (!activeRun?.id) { setExecutionEvents([]); return }
+    let cancelled = false
+    const loadTimeline = async () => {
+      try {
+        const response = await fetch(`/api/runs/${encodeURIComponent(activeRun.id)}/timeline?limit=1000`)
+        if (!response.ok) return
+        const data = await response.json() as { events?: PersistedExecutionEvent[] }
+        if (!cancelled && Array.isArray(data.events)) setExecutionEvents(data.events)
+      } catch { /* Timeline replay is retried on the next refresh. */ }
+    }
+    void loadTimeline()
+    const timer = window.setInterval(loadTimeline, 2500)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [activeRun?.id])
 
   // Single Core Action: Dispatch New Mission through Superagent
   const handleStartMission = async (customGoal?: string, customMode?: ExecutionMode) => {
@@ -678,9 +702,15 @@ export function MissionHub({
               </span>
             </div>
 
-            {activeRun?.events && activeRun.events.length > 0 ? (
+            {executionEvents.length > 0 || (activeRun?.events?.length ?? 0) > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {activeRun.events.map(ev => (
+                {(executionEvents.length ? executionEvents.map(event => ({
+                  id: event.id,
+                  occurredAt: event.occurredAt,
+                  type: event.kind,
+                  message: event.payload?.message ?? event.kind,
+                  details: event.payload?.details,
+                })) : activeRun?.events ?? []).map(ev => (
                   <div
                     key={ev.id}
                     style={{
