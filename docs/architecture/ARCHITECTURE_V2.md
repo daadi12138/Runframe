@@ -116,7 +116,7 @@ Recovery invariants:
 - [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including Mission acceptance criteria, task descriptions and acceptance criteria, multi-dependency editing, and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
 - [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
-- [x] Gate Mission delivery on the legacy Worktree diff approval flow: a successful Run alone cannot mark a Mission delivered; the user must request delivery review, approve the diff in the execution timeline, and then explicitly confirm Mission delivery.
+- [x] Gate Mission delivery on a persisted Run delivery receipt: a successful Run alone cannot mark a Mission delivered; changed files require Worktree diff approval in the execution timeline, no-change runs record an explicit no-change receipt, and the user then confirms Mission delivery.
 - [x] Add a Run → TaskNode → Attempt → Tool Event execution hierarchy in the Mission Hub.
 - [ ] Extend the hierarchy to nested child-agent sessions and operating-system subprocess trees.
 - [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
@@ -149,4 +149,4 @@ src/
   core/            # stable public facade
 ```
 
-This branch now contains the additive Phase 0 contracts, durable Phase 1 persistence/timeline infrastructure, Mission/Plan/Approval application services, REST APIs, and an integrated Mission planning workspace. Saved plans dispatch through a dedicated compatibility adapter into the existing isolated Run / Worktree engine, with plan provenance persisted on the Run and delivery completion requiring an explicit user decision. Remaining work is intentionally tracked: capability-aware runtime dispatch, scheduler and recovery extraction, journal-driven active-attempt recovery, nested process/session trees, deeper delivery evidence linkage, and end-to-end migration tests.
+This branch now contains the additive Phase 0 contracts, durable Phase 1 persistence/timeline infrastructure, Mission/Plan/Approval application services, REST APIs, and an integrated Mission planning workspace. Saved plans dispatch through a dedicated compatibility adapter into the existing isolated Run / Worktree engine, with plan provenance and a durable delivery receipt persisted on the Run. Remaining work is intentionally tracked: capability-aware runtime dispatch, scheduler and recovery extraction, nested process/session trees, complete delivery evidence linkage to Plan revisions, and end-to-end migration tests.
