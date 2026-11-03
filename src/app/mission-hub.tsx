@@ -67,6 +67,20 @@ export type RunWorkspaceRun = {
 }
 
 type HubTab = 'kanban' | 'v2-plan' | 'process-tree' | 'timeline' | 'diff' | 'artifacts' | 'terminal'
+type ProcessTreeViewNode = {
+  id: string
+  runId: string
+  parentId?: string
+  kind: 'agent_session' | 'os_process' | 'tool_process'
+  attemptId?: string
+  sessionId?: string
+  processId?: number
+  command?: string
+  startedAt: string
+  endedAt?: string
+  exitCode?: number
+}
+
 type PersistedExecutionEvent = {
   id: string
   sequence: number
@@ -109,6 +123,7 @@ export function MissionHub({
   const [tickets, setTickets] = useState<OrchestratedTicket[]>([])
   const [runs, setRuns] = useState<RunWorkspaceRun[]>([])
   const [executionEvents, setExecutionEvents] = useState<PersistedExecutionEvent[]>([])
+  const [processTreeNodes, setProcessTreeNodes] = useState<ProcessTreeViewNode[]>([])
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [v2ActiveRunId, setV2ActiveRunId] = useState<string | null>(null)
   const [goalInput, setGoalInput] = useState('')
@@ -170,6 +185,22 @@ export function MissionHub({
     }
     void loadTimeline()
     const timer = window.setInterval(loadTimeline, 2500)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [activeRun?.id])
+
+  useEffect(() => {
+    if (!activeRun?.id) { setProcessTreeNodes([]); return }
+    let cancelled = false
+    const loadProcessTree = async () => {
+      try {
+        const response = await fetch(`/api/runs/${encodeURIComponent(activeRun.id)}/process-tree`)
+        if (!response.ok) return
+        const data = await response.json() as { nodes?: ProcessTreeViewNode[] }
+        if (!cancelled && Array.isArray(data.nodes)) setProcessTreeNodes(data.nodes)
+      } catch { /* Retry on the next refresh. */ }
+    }
+    void loadProcessTree()
+    const timer = window.setInterval(loadProcessTree, 2500)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [activeRun?.id])
 
@@ -567,7 +598,7 @@ export function MissionHub({
             onRunStarted={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }}
             onDeliveryRequested={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }}
           />}
-        {activeTab === 'process-tree' && <ExecutionProcessTree run={activeRun} />}
+        {activeTab === 'process-tree' && <ExecutionProcessTree run={activeRun} processTree={processTreeNodes} />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1119,7 +1150,7 @@ export function MissionHub({
 }
 
 
-function ExecutionProcessTree({ run }: { run: RunWorkspaceRun | null }) {
+function ExecutionProcessTree({ run, processTree }: { run: RunWorkspaceRun | null; processTree: ProcessTreeViewNode[] }) {
   if (!run) {
     return <div style={{ flex: 1, padding: 48, textAlign: 'center', color: 'var(--quiet)' }}>选择一个 Run 后查看执行树。</div>
   }
@@ -1136,6 +1167,27 @@ function ExecutionProcessTree({ run }: { run: RunWorkspaceRun | null }) {
           <span className={`status-pill ${run.status === 'succeeded' ? 'valid' : run.status === 'failed' ? 'failed' : 'pending'}`}>{run.status}</span>
         </div>
         <div style={{ marginTop: 5, color: 'var(--muted)', fontSize: 11 }}>{run.mission?.missionTitle || run.workflow?.workflowName || 'Legacy Run'}{run.mission ? ` · Plan r${run.mission.planRevision}` : ''}</div>
+      </div>
+      <div style={{ padding: 14, border: '1px solid var(--line)', borderRadius: 9, background: 'var(--surface)', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <strong style={{ color: 'var(--ink)', fontSize: 13 }}>Agent Session / OS Process</strong>
+          <span style={{ color: 'var(--muted)', fontSize: 11 }}>{processTree.length} 个运行时节点</span>
+        </div>
+        {processTree.length ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
+            {processTree.map(item => (
+              <div key={item.id} style={{ marginLeft: item.parentId ? 18 : 0, padding: '8px 10px', borderLeft: '2px solid var(--line)', background: 'var(--card)', borderRadius: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <strong style={{ color: 'var(--ink)', fontSize: 11 }}>{item.kind === 'agent_session' ? 'Agent Session' : item.kind === 'os_process' ? 'OS Process' : 'Tool Process'} · {item.id}</strong>
+                  <span style={{ color: item.endedAt ? 'var(--muted)' : 'var(--success, var(--purple))', fontSize: 10 }}>{item.endedAt ? (item.exitCode === undefined ? 'ended' : `exit ${item.exitCode}`) : 'running'}</span>
+                </div>
+                <div style={{ color: 'var(--quiet)', fontSize: 10, marginTop: 3 }}>
+                  {item.processId ? `PID ${item.processId} · ` : ''}{item.attemptId ? `Attempt ${item.attemptId} · ` : ''}{new Date(item.startedAt).toLocaleTimeString('zh-CN')}{item.endedAt ? ` → ${new Date(item.endedAt).toLocaleTimeString('zh-CN')}` : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p style={{ color: 'var(--quiet)', fontSize: 11, margin: '10px 0 0' }}>尚无可投影的 Session / Process 生命周期事件。历史 Attempt 不会被推断为真实 OS 进程。</p>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 16, borderLeft: '1px solid var(--line)' }}>
         {run.nodes.map(node => (
