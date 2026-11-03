@@ -1,4 +1,4 @@
-import { createDefaultMissionRepository, startRun } from '@artifact/core'
+import { cancelRun, createDefaultMissionRepository, startRun, transitionMission } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -16,8 +16,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const repository = createDefaultMissionRepository()
     const mission = await repository.getMission(id)
     if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
-    if (mission.status !== 'planned') {
-      return Response.json({ error: `Mission must be planned before dispatch (current: ${mission.status}).` }, { status: 409 })
+    if (mission.status !== 'planned' && mission.status !== 'review') {
+      return Response.json({ error: `Mission must be planned or in review before dispatch (current: ${mission.status}).` }, { status: 409 })
     }
     const plan = await repository.getLatestPlan(id)
     if (!plan) return Response.json({ error: 'Mission has no saved Plan Revision' }, { status: 409 })
@@ -43,8 +43,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         attachments: [],
       },
     })
-    const updatedMission = { ...mission, status: 'running' as const, activeRunId: run.id, updatedAt: new Date().toISOString() }
-    await repository.saveMission(updatedMission)
+    const updatedMission = {
+      ...mission,
+      status: transitionMission(mission.status, 'running'),
+      activeRunId: run.id,
+      updatedAt: new Date().toISOString(),
+    }
+    try {
+      await repository.saveMission(updatedMission)
+    } catch (error) {
+      await cancelRun(run.id).catch(() => undefined)
+      throw error
+    }
     return Response.json({ mission: updatedMission, run }, { status: 201 })
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
