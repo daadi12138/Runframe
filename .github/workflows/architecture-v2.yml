@@ -1,0 +1,31 @@
+name: Architecture V2 validation
+
+on:
+  push:
+    branches: [architecture-v2]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'docs/architecture/**'
+      - 'package.json'
+      - '.github/workflows/architecture-v2.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-package-lock
+      - name: Unit tests
+        run: npm run test
+      - name: TypeScript validation
+        run: npm run typecheck
+      - name: Next.js production build
+        run: npm run build
