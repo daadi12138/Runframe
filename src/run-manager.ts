@@ -1479,6 +1479,14 @@ async function saveRun(run: RunSnapshot): Promise<void> {
           attemptId: attempt.id,
           sessionId: sessionNodeId,
         })
+        if (attempt.sessionId) {
+          await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:identity`, attempt.startedAt, {
+            id: sessionNodeId,
+            sessionId: sessionNodeId,
+            nativeSessionId: attempt.sessionId,
+            metadataOnly: true,
+          })
+        }
         // Read the append-only trace file rather than the bounded manifest tail so
         // long sessions retain their complete output history in the V2 journal.
         let completeTrace: AgentTraceEvent[] = attempt.trace ?? []
