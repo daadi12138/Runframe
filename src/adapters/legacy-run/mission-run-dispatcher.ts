@@ -6,7 +6,7 @@ export class LegacyMissionRunDispatcher implements MissionRunDispatcher {
     const nodes = request.tasks.map(task => ({
       id: task.id,
       kind: 'Agent',
-      executorId: request.executorId,
+      executorId: task.assignedAgentId || request.executorId,
       prompt: [
         task.title,
         task.description ?? '',
