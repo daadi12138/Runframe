@@ -49,3 +49,12 @@ test('rejects invalid process IDs and invalid time ranges', () => {
   assert.ok(result.errors.some(error => error.includes('invalid start time')))
   assert.ok(result.errors.some(error => error.includes('ends before it starts')))
 })
+
+test('rejects an empty process exit signal', () => {
+  const result = validateProcessTree([{
+    id: 'process', runId: 'run-1', kind: 'os_process', startedAt: '2026-01-01T00:00:00.000Z',
+    endedAt: '2026-01-01T00:00:01.000Z', exitSignal: '   ',
+  }])
+  assert.equal(result.valid, false)
+  assert.ok(result.errors.some(error => error.includes('invalid exit signal')))
+})
