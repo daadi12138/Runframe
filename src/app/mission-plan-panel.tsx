@@ -10,7 +10,7 @@ type PlanRecord = { id: string; missionId: string; revision: number; nodes: Task
 const inputStyle = { padding: '9px 11px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--ink)', fontSize: 12, minWidth: 0 } as const
 const buttonStyle = { padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' } as const
 
-export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: string) => void }) {
+export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunStarted?: (runId: string) => void; onDeliveryRequested?: (runId: string) => void }) {
   const [missions, setMissions] = useState<MissionRecord[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [plan, setPlan] = useState<PlanRecord | null>(null)
@@ -85,6 +85,7 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '申请交付审批失败')
       setLinkedRunStatus(result.run.status)
+      onDeliveryRequested?.(result.run.id)
       await refreshMissions()
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { setBusy(false) }
