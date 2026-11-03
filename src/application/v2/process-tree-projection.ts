@@ -63,6 +63,7 @@ export function projectProcessTree(events: readonly ExecutionEvent[]): ProcessTr
       const existing = nodes.get(event.payload.id)
       if (!existing) throw new Error(`Session identity event references unknown node: ${event.payload.id}`)
       if (existing.runId !== event.runId) throw new Error('Session identity event crosses Run boundaries.')
+      if (existing.endedAt) throw new Error('Session identity event arrived after the session ended.')
       if (event.attemptId && existing.attemptId && event.attemptId !== existing.attemptId) throw new Error('Session identity event crosses Attempt boundaries.')
       nodes.set(existing.id, { ...existing, sessionId: event.payload.nativeSessionId.slice(0, 256) })
     } else if (event.kind === 'session.ended' || event.kind === 'process.exited') {
