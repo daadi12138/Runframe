@@ -20,10 +20,14 @@ export class MissionService {
   async create(input: CreateMissionInput): Promise<Mission> {
     const title = input.title.trim()
     if (!title) throw new Error('Mission title is required.')
-    const criteria = input.acceptanceCriteria ?? []
+    const criteria = (input.acceptanceCriteria ?? []).map(criterion => ({
+      ...criterion,
+      id: criterion.id.trim(),
+      description: criterion.description.trim(),
+    }))
     const criterionIds = new Set<string>()
     for (const criterion of criteria) {
-      if (!criterion.id.trim() || !criterion.description.trim()) throw new Error('Acceptance criteria need an ID and description.')
+      if (!criterion.id || !criterion.description) throw new Error('Acceptance criteria need an ID and description.')
       if (criterionIds.has(criterion.id)) throw new Error(`Duplicate acceptance criterion ID: ${criterion.id}`)
       criterionIds.add(criterion.id)
     }
@@ -71,14 +75,26 @@ export class MissionService {
       throw new Error(`Cannot revise a plan while mission is ${mission.status}.`)
     }
     if (!nodes.length) throw new Error('A Mission Plan needs at least one task node.')
-    const graph = validatePlanGraph(nodes)
+    const normalizedNodes = nodes.map(node => ({
+      ...node,
+      id: node.id.trim(),
+      title: node.title.trim(),
+      ...(node.description !== undefined ? { description: node.description.trim() } : {}),
+      dependsOn: node.dependsOn.map(dependency => dependency.trim()),
+      ...(node.assignedAgentId !== undefined ? { assignedAgentId: node.assignedAgentId.trim() } : {}),
+      ...(node.acceptanceCriteria !== undefined ? { acceptanceCriteria: node.acceptanceCriteria.map(item => item.trim()) } : {}),
+    }))
+    if (normalizedNodes.some(node => !node.id || !node.title || node.acceptanceCriteria?.some(item => !item))) {
+      throw new Error('Plan task IDs, titles, and acceptance criteria must not be empty.')
+    }
+    const graph = validatePlanGraph(normalizedNodes)
     if (!graph.valid) throw new Error(`Invalid plan graph: ${graph.errors.join('; ')}`)
     const latest = await this.repository.getLatestPlan(missionId)
     const plan: PlanRevision = {
       id: `plan-${randomUUID()}`,
       missionId,
       revision: (latest?.revision ?? 0) + 1,
-      nodes: nodes.map(node => ({ ...node, dependsOn: [...node.dependsOn] })),
+      nodes: normalizedNodes,
       createdAt: this.now().toISOString(),
     }
     await this.repository.savePlan(plan)
