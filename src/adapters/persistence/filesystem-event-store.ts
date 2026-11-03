@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { mkdir, open, readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ExecutionEvent } from '../../domain/v2/model'
@@ -15,6 +14,18 @@ const safeRunId = (runId: string): string => {
     throw new Error('Invalid run ID for execution journal.')
   }
   return runId
+}
+
+function stableSerialize(value: unknown): string {
+  const normalize = (item: unknown): unknown => {
+    if (Array.isArray(item)) return item.map(normalize)
+    if (item && typeof item === 'object') {
+      return Object.fromEntries(Object.entries(item).sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, normalize(nested)]))
+    }
+    return item
+  }
+  return JSON.stringify(normalize(value))
 }
 
 const validateEvent = (event: ExecutionEvent): void => {
@@ -129,7 +140,7 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
       if (options.idempotencyKey) {
         const existing = records.find(record => record.idempotencyKey === options.idempotencyKey)
         if (existing) {
-          if (existing.event.id !== event.id || JSON.stringify(existing.event) !== JSON.stringify(event)) {
+          if (existing.event.id !== event.id || stableSerialize(existing.event) !== stableSerialize(event)) {
             throw new Error(`Idempotency key already used by a different event: ${options.idempotencyKey}`)
           }
           return
