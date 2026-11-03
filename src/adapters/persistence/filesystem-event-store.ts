@@ -146,7 +146,7 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
     if (!content) return []
     const lines = content.split('\n')
     if (lines.at(-1) === '') lines.pop()
-    return lines.map((line, index) => {
+    const records = lines.map((line, index) => {
       try {
         const record = JSON.parse(line) as JournalRecord
         if (record.schemaVersion !== 1 || !record.event) throw new Error('Unsupported journal record schema.')
@@ -157,6 +157,13 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
         throw new Error(`Corrupt execution journal for run ${runId} at line ${index + 1}: ${(error as Error).message}`)
       }
     })
+    const eventIds = new Set<string>()
+    records.forEach((record, index) => {
+      if (record.event.sequence !== index + 1) throw new Error(`Corrupt execution journal for run ${runId}: expected sequence ${index + 1}, found ${record.event.sequence}.`)
+      if (eventIds.has(record.event.id)) throw new Error(`Corrupt execution journal for run ${runId}: duplicate event ID ${record.event.id}.`)
+      eventIds.add(record.event.id)
+    })
+    return records
   }
 
   async append<TPayload>(event: ExecutionEvent<TPayload>, options: EventAppendOptions = {}): Promise<void> {
