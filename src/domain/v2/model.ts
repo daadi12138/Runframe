@@ -2,7 +2,7 @@
 
 export type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 'cancelled'
 export type TaskStatus = 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'
-export type AttemptStatus = 'queued' | 'starting' | 'running' | 'succeeded' | 'failed' | 'interrupted' | 'cancelled'
+export type AttemptStatus = 'queued' | 'starting' | 'running' | 'paused' | 'succeeded' | 'failed' | 'interrupted' | 'cancelled'
 export type ExecutionEventKind =
   | 'attempt.queued'
   | 'attempt.started'
@@ -10,6 +10,9 @@ export type ExecutionEventKind =
   | 'attempt.completed'
   | 'attempt.failed'
   | 'attempt.interrupted'
+  | 'attempt.resumed'
+  | 'attempt.process_attached'
+  | 'attempt.cancelled'
   | 'approval.requested'
   | 'approval.granted'
   | 'approval.denied'
