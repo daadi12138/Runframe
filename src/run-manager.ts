@@ -911,7 +911,7 @@ async function validateAgentExecutors(nodes: Array<Omit<RunNode, 'state' | 'atte
   for (const id of requestedIds) {
     const executor = await resolveExecutorForRun(id)
     assertExecutorReady(executor, id)
-    if (!agentAdapters.has(executor.id)) throw new Error(`Executor adapter not implemented: ${executor.id}`)
+    if (!agentAdapters.has(executor.id) || !agentRuntimes.list().some(runtime => runtime.id === executor.id)) throw new Error(`Executor runtime adapter not implemented: ${executor.id}`)
   }
 }
 
