@@ -1502,7 +1502,21 @@ async function saveRun(run: RunSnapshot): Promise<void> {
           attemptId: attempt.id,
           sessionId: sessionNodeId,
         })
-        for (const trace of attempt.trace ?? []) {
+        // Read the append-only trace file rather than the bounded manifest tail so
+        // long sessions retain their complete output history in the V2 journal.
+        let completeTrace: AgentTraceEvent[] = attempt.trace ?? []
+        try {
+          const traceContent = await readFile(join(attemptDirectory(run.id, attempt.id), 'trace.jsonl'), 'utf8')
+          completeTrace = traceContent.split(/\\r?\\n/).filter(Boolean).flatMap(line => {
+            try {
+              const value = JSON.parse(line) as AgentTraceEvent
+              return Number.isSafeInteger(value.seq) && typeof value.occurredAt === 'string' ? [value] : []
+            } catch { return [] }
+          })
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+        }
+        for (const trace of completeTrace) {
           const content = trace.content ?? trace.command ?? trace.status
           if (!content) continue
           await appendRuntimeFact(attempt, 'session.output', `session:${attempt.id}:output:${trace.seq}`, trace.occurredAt, {
