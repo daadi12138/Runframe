@@ -14,6 +14,15 @@ export type ExecutionEventKind =
   | 'approval.granted'
   | 'approval.denied'
   | 'artifact.created'
+  | 'run.created'
+  | 'run.state'
+  | 'node.state'
+  | 'command.executed'
+  | 'executor.activity'
+  | 'artifact.updated'
+  | 'operator.interaction'
+  | 'activity'
+  | 'error'
 
 export interface AcceptanceCriterion {
   id: string
