@@ -575,6 +575,351 @@ button > svg {
   background: var(--canvas-bg);
 }
 
+/* Mission Hub uses a two-level command surface: tabs reflow, metrics stay readable. */
+.mission-hub-root,
+.mission-hub-root > * {
+  min-width: 0;
+}
+
+.hub-command-deck {
+  min-width: 0;
+}
+
+.hub-command-heading,
+.hub-project-meta,
+.hub-project-facts,
+.hub-command-actions,
+.hub-dispatch-row,
+.hub-gate-banner,
+.hub-gate-copy,
+.hub-gate-actions {
+  min-width: 0;
+}
+
+.hub-project-meta {
+  flex: 1 1 auto;
+}
+
+.hub-project-facts {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-command-actions {
+  flex: 0 0 auto;
+}
+
+.hub-dispatch-row > .dispatch-input-wrap,
+.hub-dispatch-row > div:first-child {
+  min-width: 0;
+}
+
+.hub-gate-banner {
+  gap: 12px;
+}
+
+.hub-gate-copy {
+  flex: 1 1 auto;
+}
+
+.hub-gate-copy > div {
+  min-width: 0;
+}
+
+.hub-gate-copy strong,
+.hub-gate-copy p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-gate-actions {
+  flex: 0 0 auto;
+}
+
+.hub-tabbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 24px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.hub-tab-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.hub-view-tab {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 62px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.hub-view-tab:hover {
+  border-color: var(--line-strong, var(--line));
+  background: color-mix(in srgb, var(--surface) 72%, var(--accent) 8%);
+  color: var(--text);
+}
+
+.hub-view-tab:focus-visible {
+  outline: 2px solid var(--accent-hover, var(--accent));
+  outline-offset: 2px;
+}
+
+.hub-view-tab.active {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+  color: var(--text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 16%, transparent);
+}
+
+.hub-view-tab.active::after {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  left: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent-hover, var(--accent));
+  content: '';
+}
+
+.hub-view-tab > svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+
+.hub-view-tab-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.hub-view-tab-copy strong,
+.hub-view-tab-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-view-tab-copy strong {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.hub-view-tab-copy small {
+  color: var(--quiet, var(--muted));
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.hub-view-tab-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hub-view-tab.active .hub-view-tab-count {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  color: var(--text);
+}
+
+.hub-metrics {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+@media (max-width: 980px) {
+  .hub-command-heading {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .hub-command-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .hub-dispatch-row {
+    align-items: stretch !important;
+    flex-wrap: wrap;
+  }
+
+  .hub-dispatch-row > div:first-child {
+    flex: 1 1 100%;
+  }
+
+  .hub-dispatch-row .mode-selector {
+    flex: 1 1 auto;
+  }
+
+  .hub-dispatch-row .dispatch-btn {
+    flex: 0 0 auto;
+  }
+
+  .hub-gate-banner {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .hub-gate-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .hub-tabbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 16px;
+  }
+
+  .hub-tab-list {
+    width: 100%;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hub-metrics {
+    min-height: 46px;
+    justify-content: flex-end;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 560px) {
+  .hub-command-deck {
+    padding: 12px 14px !important;
+  }
+
+  .hub-tabbar {
+    padding: 0 10px;
+  }
+
+  .hub-tab-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .hub-view-tab {
+    min-height: 56px;
+    padding: 9px 10px;
+    gap: 7px;
+  }
+
+  .hub-view-tab-copy strong {
+    font-size: 12px;
+  }
+
+  .hub-view-tab-copy small {
+    font-size: 9px;
+  }
+
+  .hub-command-actions {
+    justify-content: stretch;
+  }
+
+  .hub-command-actions .card-action-btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .hub-project-meta {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 8px !important;
+  }
+
+  .hub-project-facts {
+    width: 100%;
+    white-space: normal;
+    line-height: 1.5;
+  }
+
+  .hub-dispatch-row .mode-selector,
+  .hub-dispatch-row .dispatch-btn {
+    flex: 1 1 100%;
+  }
+
+  .hub-dispatch-row .mode-selector {
+    justify-content: space-between;
+  }
+
+  .hub-dispatch-row .mode-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .hub-gate-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hub-gate-actions .card-action-btn {
+    width: 100%;
+  }
+
+  .hub-metrics {
+    justify-content: space-between;
+    gap: 5px;
+  }
+
+  .hub-metrics .hud-stat-pill {
+    min-width: 0 !important;
+    flex: 1 1 0;
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  .hub-metrics .header-icon-button {
+    flex: 0 0 30px;
+  }
+}
+
 /* Short library, registry, and setup views still reserve the workspace height. */
 .workspace > .content-view {
   flex: 1 1 auto;

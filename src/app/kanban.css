@@ -188,18 +188,80 @@
   background: var(--canvas);
   border-bottom: 1px solid var(--line);
   font-size: 12px;
+  min-width: 0;
 }
 
 .kanban-filters {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .filter-chip-group {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
+}
+
+.kanban-toolbar > .run-log-filter,
+.kanban-toolbar > input {
+  min-width: 0;
+  flex: 0 1 220px;
+}
+
+.kanban-toolbar > div:last-child {
+  min-width: 0;
+  flex: 0 1 240px;
+}
+
+.kanban-toolbar > div:last-child input {
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .kanban-topbar,
+  .kanban-dispatch-bar,
+  .kanban-toolbar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .kanban-topbar,
+  .kanban-dispatch-bar,
+  .kanban-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kanban-stats-hud,
+  .kanban-filters {
+    width: 100%;
+  }
+
+  .kanban-stats-hud {
+    justify-content: stretch;
+  }
+
+  .hud-stat-pill {
+    flex: 1 1 0;
+  }
+
+  .dispatch-btn {
+    justify-content: center;
+  }
+
+  .kanban-toolbar > .run-log-filter,
+  .kanban-toolbar > input,
+  .kanban-toolbar > div:last-child {
+    width: 100%;
+    flex-basis: auto;
+  }
 }
 
 .filter-chip {

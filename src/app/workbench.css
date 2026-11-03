@@ -1141,7 +1141,11 @@
 
 @media (max-width: 960px) {
   .workbench-main.with-browser {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 42%);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workbench-main.with-browser .workbench-browser-panel {
+    display: none;
   }
 
   .project-file-workbench {
@@ -1166,7 +1170,11 @@
 
 @media (max-width: 620px) {
   .workbench-main.with-browser {
-    grid-template-columns: minmax(0, 58%) minmax(0, 42%);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workbench-main.with-browser .workbench-browser-panel {
+    display: none;
   }
 
   .project-file-workbench {

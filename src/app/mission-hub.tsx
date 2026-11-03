@@ -258,12 +258,12 @@ export function MissionHub({
     <div className="mission-hub-root" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* 1. Global Command Deck & Unified Entrance */}
       <header className="hub-command-deck" style={{ padding: '16px 24px', background: 'var(--surface)', borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="hub-command-heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div className="hub-project-meta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="kanban-badge" style={{ background: 'linear-gradient(135deg, rgb(99 102 241 / 25%), rgb(129 140 248 / 15%))' }}>
               <Sparkles size={14} color="var(--purple)" /> 统一任务与研发中枢
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
+            <div className="hub-project-facts" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--muted)' }}>
               <span>项目：<strong style={{ color: 'var(--ink)' }}>{projectName}</strong></span>
               <span>·</span>
               <span>分支：<code style={{ color: 'var(--sky)' }}>{activeRun?.branchName || mission?.tickets[0]?.branch || 'main'}</code></span>
@@ -272,7 +272,7 @@ export function MissionHub({
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="hub-command-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               className="card-action-btn"
@@ -303,7 +303,7 @@ export function MissionHub({
         </div>
 
         {/* Unified Fast Mission Dispatcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="hub-dispatch-row" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
             <Bot size={18} style={{ position: 'absolute', left: 14, color: 'var(--purple)', pointerEvents: 'none' }} />
             <input
@@ -379,7 +379,7 @@ export function MissionHub({
 
       {/* 2. Gatekeeper Alert Banner (when human action required) */}
       {pendingGateTicket && (
-        <div style={{
+        <div className="hub-gate-banner" style={{
           padding: '10px 24px',
           background: 'linear-gradient(90deg, rgb(245 158 11 / 15%), rgb(245 158 11 / 5%))',
           borderBottom: '1px solid rgb(245 158 11 / 30%)',
@@ -387,14 +387,14 @@ export function MissionHub({
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="hub-gate-copy" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <ShieldAlert size={18} color="var(--amber)" />
             <div>
               <strong style={{ color: 'var(--amber)', fontSize: 13 }}>等待人工安全审批：{pendingGateTicket.title}</strong>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>{pendingGateTicket.description}</p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="hub-gate-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               className="card-action-btn"
@@ -414,74 +414,69 @@ export function MissionHub({
       )}
 
       {/* 3. Unified Product Navigation Tabs & Stats HUD */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        background: 'var(--surface-2)',
-        borderBottom: '1px solid var(--line)',
-      }}>
+      <div className="hub-tabbar">
         {/* Core View Switchers */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className="hub-tab-list" role="tablist" aria-label="任务中枢视图">
           <button
             type="button"
-            className={`context-item ${activeTab === 'kanban' ? 'active' : ''}`}
-            style={{ padding: '10px 14px', borderRadius: 0, borderBottom: activeTab === 'kanban' ? '2px solid var(--purple)' : '2px solid transparent', background: 'transparent' }}
+            role="tab"
+            className={`hub-view-tab ${activeTab === 'kanban' ? 'active' : ''}`}
+            aria-selected={activeTab === 'kanban'}
             onClick={() => setActiveTab('kanban')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: activeTab === 'kanban' ? 600 : 400, color: activeTab === 'kanban' ? 'var(--ink)' : 'var(--muted)' }}>
-              <LayoutGrid size={14} /> 进度看板 (Kanban) <span className="column-count" style={{ minWidth: 18, height: 18, fontSize: 10 }}>{stats.total}</span>
-            </span>
+            <LayoutGrid size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>进度看板</strong><small>Kanban</small></span>
+            <span className="hub-view-tab-count">{stats.total}</span>
           </button>
 
           <button
             type="button"
-            className={`context-item ${activeTab === 'timeline' ? 'active' : ''}`}
-            style={{ padding: '10px 14px', borderRadius: 0, borderBottom: activeTab === 'timeline' ? '2px solid var(--purple)' : '2px solid transparent', background: 'transparent' }}
+            role="tab"
+            className={`hub-view-tab ${activeTab === 'timeline' ? 'active' : ''}`}
+            aria-selected={activeTab === 'timeline'}
             onClick={() => setActiveTab('timeline')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: activeTab === 'timeline' ? 600 : 400, color: activeTab === 'timeline' ? 'var(--ink)' : 'var(--muted)' }}>
-              <Layers size={14} /> 执行追踪 (Live Trace)
-            </span>
+            <Layers size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>执行追踪</strong><small>Live Trace</small></span>
           </button>
 
           <button
             type="button"
-            className={`context-item ${activeTab === 'diff' ? 'active' : ''}`}
-            style={{ padding: '10px 14px', borderRadius: 0, borderBottom: activeTab === 'diff' ? '2px solid var(--purple)' : '2px solid transparent', background: 'transparent' }}
+            role="tab"
+            className={`hub-view-tab ${activeTab === 'diff' ? 'active' : ''}`}
+            aria-selected={activeTab === 'diff'}
             onClick={() => setActiveTab('diff')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: activeTab === 'diff' ? 600 : 400, color: activeTab === 'diff' ? 'var(--ink)' : 'var(--muted)' }}>
-              <FileDiff size={14} /> 代码变更与审查 (Diff)
-            </span>
+            <FileDiff size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>代码审查</strong><small>Diff</small></span>
           </button>
 
           <button
             type="button"
-            className={`context-item ${activeTab === 'artifacts' ? 'active' : ''}`}
-            style={{ padding: '10px 14px', borderRadius: 0, borderBottom: activeTab === 'artifacts' ? '2px solid var(--purple)' : '2px solid transparent', background: 'transparent' }}
+            role="tab"
+            className={`hub-view-tab ${activeTab === 'artifacts' ? 'active' : ''}`}
+            aria-selected={activeTab === 'artifacts'}
             onClick={() => setActiveTab('artifacts')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: activeTab === 'artifacts' ? 600 : 400, color: activeTab === 'artifacts' ? 'var(--ink)' : 'var(--muted)' }}>
-              <Package size={14} /> 交付物库 (Artifacts) <span className="column-count" style={{ minWidth: 18, height: 18, fontSize: 10 }}>{activeRun?.artifacts?.length || 0}</span>
-            </span>
+            <Package size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>交付物库</strong><small>Artifacts</small></span>
+            <span className="hub-view-tab-count">{activeRun?.artifacts?.length || 0}</span>
           </button>
 
           <button
             type="button"
-            className={`context-item ${activeTab === 'terminal' ? 'active' : ''}`}
-            style={{ padding: '10px 14px', borderRadius: 0, borderBottom: activeTab === 'terminal' ? '2px solid var(--purple)' : '2px solid transparent', background: 'transparent' }}
+            role="tab"
+            className={`hub-view-tab ${activeTab === 'terminal' ? 'active' : ''}`}
+            aria-selected={activeTab === 'terminal'}
             onClick={() => setActiveTab('terminal')}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: activeTab === 'terminal' ? 600 : 400, color: activeTab === 'terminal' ? 'var(--ink)' : 'var(--muted)' }}>
-              <Terminal size={14} /> 就地终端与文件
-            </span>
+            <Terminal size={16} aria-hidden="true" />
+            <span className="hub-view-tab-copy"><strong>终端与文件</strong><small>Workbench</small></span>
           </button>
         </div>
 
         {/* Live Metrics HUD */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+        <div className="hub-metrics" aria-label="任务统计">
           <div className="hud-stat-pill" style={{ padding: '4px 8px', minWidth: 54 }}>
             <span>执行中</span>
             <strong style={{ color: 'var(--sky)', fontSize: 13 }}>{stats.inProgress}</strong>
