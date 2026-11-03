@@ -23,7 +23,7 @@ export async function GET() {
         ? mission.status
         : run?.status === 'cancelled'
           ? 'cancelled'
-          : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
+          : run && ['succeeded', 'failed'].includes(run.status)
             ? 'review'
             : mission.status
       if (status === mission.status) return mission
