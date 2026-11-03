@@ -10,8 +10,10 @@ test('streams runner events and terminal result through the AgentRuntime port', 
   const handle = await runtime.launch({ attemptId: 'attempt-1', workspaceRoot: '/workspace', prompt: 'do work' })
   const events = []
   for await (const event of runtime.output(handle.sessionId)) events.push(event)
-  assert.deepEqual(events.map(event => event.text), ['working', 'Agent execution completed.'])
-  assert.equal(events.at(-1)?.event?.type, 'result')
+  assert.deepEqual(events.map(event => event.text), ['Agent session started.', 'working', 'Agent execution completed.', 'Agent session ended.'])
+  assert.equal(events[0]?.event?.type, 'session.started')
+  assert.equal(events[2]?.event?.type, 'result')
+  assert.equal(events.at(-1)?.event?.type, 'session.ended')
   assert.equal(runtime.capabilities.attach, false)
   assert.equal(runtime.capabilities.cancellation, true)
 })
