@@ -181,3 +181,8 @@ export { getReadyTaskIds, validatePlanGraph, type GraphValidation } from '../dom
 export { AgentRuntimeRegistry } from '../adapters/agent-runtime/registry'
 export { assertRuntimeCapability, type AgentLaunchRequest, type AgentOutputEvent, type AgentRuntime, type AgentSessionHandle } from '../ports/v2/agent-runtime'
 export type { EventAppendOptions, EventReadOptions, ExecutionEventStore } from '../ports/v2/event-store'
+
+
+export { FilesystemExecutionEventStore, createDefaultExecutionEventStore, type FilesystemExecutionEventStoreOptions } from '../adapters/persistence/filesystem-event-store'
+export { FilesystemMissionRepository } from '../adapters/persistence/filesystem-mission-repository'
+export type { MissionRepository } from '../ports/v2/mission-repository'
