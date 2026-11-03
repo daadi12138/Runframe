@@ -67,10 +67,12 @@ export function projectProcessTree(events: readonly ExecutionEvent[]): ProcessTr
       if (existing.runId !== event.runId) throw new Error('Process terminal event crosses Run boundaries.')
       if (existing.endedAt) throw new Error(`Process node already has a terminal event: ${existing.id}`)
       const exitCode = event.payload.exitCode
+      const exitSignal = event.payload.signal
       if (exitCode !== undefined && (typeof exitCode !== 'number' || !Number.isInteger(exitCode))) {
         throw new Error('Process exitCode must be an integer.')
       }
-      nodes.set(existing.id, { ...existing, endedAt: event.occurredAt, exitCode: exitCode as number | undefined })
+      if (exitSignal !== undefined && typeof exitSignal !== 'string') throw new Error('Process exit signal must be a string.')
+      nodes.set(existing.id, { ...existing, endedAt: event.occurredAt, exitCode: exitCode as number | undefined, exitSignal: exitSignal as string | undefined })
     }
   }
   const result = [...nodes.values()]
