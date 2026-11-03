@@ -53,3 +53,14 @@ test('rejects terminal events with a different run identity', () => {
     event(2, 'session.ended', { id: 's' }, { runId: 'run-2' }),
   ]), /crosses Run boundaries/)
 })
+
+test('rejects malformed native session identity and cross-attempt identity facts', () => {
+  assert.throws(() => projectProcessTree([
+    event(1, 'session.started', { id: 's', kind: 'agent_session' }),
+    event(2, 'session.output', { id: 's', nativeSessionId: '   ', metadataOnly: true }),
+  ]), /invalid payload/)
+  assert.throws(() => projectProcessTree([
+    event(1, 'session.started', { id: 's', kind: 'agent_session', attemptId: 'attempt-1' }),
+    event(2, 'session.output', { id: 's', nativeSessionId: 'native-1', metadataOnly: true }, { attemptId: 'attempt-2' }),
+  ]), /Attempt boundaries/)
+})
