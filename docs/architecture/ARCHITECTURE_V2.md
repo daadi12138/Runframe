@@ -104,6 +104,7 @@ Recovery invariants:
 
 ### Phase 2 — application services
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
+- [x] Reconcile orphan Runs back to their Mission after a crash between Run creation and Mission linkage, using immutable Mission/Plan provenance on the Run.
 - [x] Add ApprovalService with exact-scope matching, serialized concurrent decisions, and append-only grant/deny records; the latest decision for an exact scope governs authorization.
 - [x] Serialize Mission dispatch requests per Mission within the local application process to prevent duplicate concurrent Runs.
 - [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate; Worktree-only approvals remain scoped to the executing Worktree.
