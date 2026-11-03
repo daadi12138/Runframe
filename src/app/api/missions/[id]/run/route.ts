@@ -1,4 +1,4 @@
-import { createDefaultMissionRepository, getRun, LegacyMissionRunDispatcher, MissionExecutionService } from '@artifact/core'
+import { createDefaultMissionRepository, LegacyRunEngineAdapter, MissionDispatchService } from '@artifact/core'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -13,16 +13,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params
   try {
     const body = requestSchema.parse(await request.json())
-    const service = new MissionExecutionService(
-      createDefaultMissionRepository(),
-      new LegacyMissionRunDispatcher(),
-    )
+    const service = new MissionDispatchService(createDefaultMissionRepository(), new LegacyRunEngineAdapter())
     const result = await service.dispatch(id, body)
-    const run = await getRun(result.runId)
-    if (!run) throw new Error('Run manifest was not available after dispatch.')
-    return Response.json({ mission: result.mission, run }, { status: 201 })
+    return Response.json({ mission: result.mission, plan: result.plan, run: result.run.snapshot }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: message.startsWith('Mission not found:') ? 404 : 400 })
+    const status = message.startsWith('Mission not found:') ? 404
+      : message.includes('must be planned') || message.includes('no saved Plan') ? 409
+        : 400
+    return Response.json({ error: message }, { status })
   }
 }
