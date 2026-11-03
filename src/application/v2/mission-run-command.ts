@@ -24,8 +24,16 @@ export function buildMissionRunCommand(request: MissionRunDispatchRequest): Miss
   if (request.plan.missionId !== request.missionId) {
     throw new Error('Mission Plan provenance does not match the dispatch request.')
   }
+  const sameTask = (left: MissionRunDispatchRequest['tasks'][number], right: MissionRunDispatchRequest['plan']['nodes'][number]) =>
+    left.id === right.id
+    && left.title === right.title
+    && left.description === right.description
+    && left.status === right.status
+    && left.assignedAgentId === right.assignedAgentId
+    && JSON.stringify(left.dependsOn) === JSON.stringify(right.dependsOn)
+    && JSON.stringify(left.acceptanceCriteria ?? []) === JSON.stringify(right.acceptanceCriteria ?? [])
   if (request.tasks.length !== request.plan.nodes.length
-    || request.tasks.some((task, index) => task.id !== request.plan.nodes[index]?.id)) {
+    || request.tasks.some((task, index) => !sameTask(task, request.plan.nodes[index]))) {
     throw new Error('Mission dispatch tasks must exactly match the selected Plan Revision.')
   }
 
