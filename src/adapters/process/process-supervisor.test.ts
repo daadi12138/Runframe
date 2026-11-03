@@ -3,8 +3,8 @@ import test from 'node:test'
 import { activeProcesses, isProcessAlive, terminateRecordedProcess } from './process-supervisor'
 
 test('tracks active child handles by Attempt identity', () => {
-  const child = { pid: 4242 } as NodeJS.Process
-  activeProcesses.set('attempt-process-test', child as never)
+  const child = { pid: 4242 } as unknown as import('node:child_process').ChildProcess
+  activeProcesses.set('attempt-process-test', child)
   assert.equal(activeProcesses.get('attempt-process-test')?.pid, 4242)
   activeProcesses.delete('attempt-process-test')
   assert.equal(activeProcesses.has('attempt-process-test'), false)
