@@ -18,7 +18,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         ? mission.status
         : run?.status === 'cancelled'
           ? 'cancelled'
-          : run && ['succeeded', 'failed', 'awaiting_delivery'].includes(run.status)
+          : run && ['succeeded', 'failed'].includes(run.status)
             ? 'review'
             : mission.status
       if (reconciledStatus !== mission.status) {
