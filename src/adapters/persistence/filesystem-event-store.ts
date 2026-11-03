@@ -81,79 +81,64 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
     const directory = this.directory(runId)
     await mkdir(directory, { recursive: true })
     const lockPath = join(directory, '.write-lock')
+    const guardPath = join(directory, '.write-lock.guard')
     const startedAt = Date.now()
     let acquired = false
 
     while (!acquired) {
+      let guardAcquired = false
       try {
-        await mkdir(lockPath)
-        try {
-          await writeFile(join(lockPath, 'owner.json'), JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }), 'utf8')
-          acquired = true
-        } catch (error) {
-          await rm(lockPath, { recursive: true, force: true })
-          throw error
-        }
+        // The short-lived guard serializes both lock creation and stale-lock
+        // reclamation. It is never held while the journal operation runs.
+        await mkdir(guardPath)
+        guardAcquired = true
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-        try {
-          const lockStat = await stat(lockPath)
-          let stale = false
-          try {
-            const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
-            if (Number.isSafeInteger(owner.pid) && typeof owner.pid === 'number') {
-              try { process.kill(owner.pid, 0) } catch (ownerError) {
-                if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stale = true
-              }
-            } else {
-              stale = Date.now() - lockStat.mtimeMs > this.staleLockMs
-            }
-          } catch (ownerError) {
-            if (Date.now() - lockStat.mtimeMs > ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' ? 5_000 : this.staleLockMs)) stale = true
-          }
-          if (stale) {
-            // Serialize stale-lock reclamation itself. Without this second atomic
-            // lock, two waiters could both remove a newly acquired writer lock.
-            const reclaimPath = `${lockPath}.reclaim`
-            let reclaimAcquired = false
-            try {
-              await mkdir(reclaimPath)
-              reclaimAcquired = true
-            } catch (reclaimError) {
-              if ((reclaimError as NodeJS.ErrnoException).code !== 'EEXIST') throw reclaimError
-            }
-            if (reclaimAcquired) {
-              try {
-                let stillStale = false
-                try {
-                  const currentStat = await stat(lockPath)
-                  const currentOwner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
-                  if (Number.isSafeInteger(currentOwner.pid) && typeof currentOwner.pid === 'number') {
-                    try { process.kill(currentOwner.pid, 0) } catch (ownerError) {
-                      if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stillStale = true
-                    }
-                  } else {
-                    stillStale = Date.now() - currentStat.mtimeMs > this.staleLockMs
-                  }
-                } catch (ownerError) {
-                  stillStale = (ownerError as NodeJS.ErrnoException).code === 'ENOENT'
-                }
-                if (stillStale) await rm(lockPath, { recursive: true, force: true })
-              } finally {
-                await rm(reclaimPath, { recursive: true, force: true })
-              }
-              continue
-            }
-          }
-        } catch (statError) {
-          if ((statError as NodeJS.ErrnoException).code === 'ENOENT') continue
-          throw statError
-        }
-        if (Date.now() - startedAt >= this.lockTimeoutMs) {
-          throw new Error(`Timed out acquiring execution journal lock for run ${runId}.`)
-        }
-        await new Promise(resolve => setTimeout(resolve, 20))
       }
+
+      if (guardAcquired) {
+        try {
+          try {
+            await mkdir(lockPath)
+            try {
+              await writeFile(join(lockPath, 'owner.json'), JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }), 'utf8')
+              acquired = true
+            } catch (error) {
+              await rm(lockPath, { recursive: true, force: true })
+              throw error
+            }
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+            let stale = false
+            try {
+              const lockStat = await stat(lockPath)
+              try {
+                const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
+                if (Number.isSafeInteger(owner.pid) && typeof owner.pid === 'number') {
+                  try { process.kill(owner.pid, 0) } catch (ownerError) {
+                    if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stale = true
+                  }
+                } else {
+                  stale = Date.now() - lockStat.mtimeMs > this.staleLockMs
+                }
+              } catch (ownerError) {
+                stale = Date.now() - lockStat.mtimeMs > ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' ? 5_000 : this.staleLockMs)
+              }
+              if (stale) await rm(lockPath, { recursive: true, force: true })
+            } catch (statError) {
+              if ((statError as NodeJS.ErrnoException).code !== 'ENOENT') throw statError
+            }
+          }
+        } finally {
+          await rm(guardPath, { recursive: true, force: true })
+        }
+      }
+
+      if (acquired) break
+      if (Date.now() - startedAt >= this.lockTimeoutMs) {
+        throw new Error(`Timed out acquiring execution journal lock for run ${runId}.`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 20))
     }
 
     try {
