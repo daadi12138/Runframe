@@ -106,7 +106,6 @@ Recovery invariants:
 - [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
 - [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate.
 - [x] Add Mission and Plan REST APIs, a MissionExecutionService use case, and a MissionRunDispatcher port. The LegacyMissionRunDispatcher converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution without putting orchestration logic in the HTTP route.
-- [x] Route Mission Plan dispatch through a MissionExecutionService use case and a dedicated legacy Run adapter.
 - [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
 - [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch.
 - [ ] Keep facade exports stable through `src/core/index.ts`.
