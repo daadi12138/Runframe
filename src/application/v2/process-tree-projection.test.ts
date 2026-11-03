@@ -17,7 +17,7 @@ test('projects nested session and subprocess lifecycle facts', () => {
   const tree = projectProcessTree([
     event(1, 'session.started', { id: 'session', kind: 'agent_session', sessionId: 's-1' }),
     event(2, 'process.started', { id: 'process', parentId: 'session', kind: 'os_process', processId: 321 }),
-    event(3, 'process.exited', { id: 'process', exitCode: null, signal: 'SIGTERM' }),
+    event(3, 'process.exited', { id: 'process', signal: 'SIGTERM' }),
     event(4, 'session.ended', { id: 'session' }),
   ])
   assert.equal(tree.length, 2)
