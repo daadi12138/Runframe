@@ -43,7 +43,11 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
     if (!approval.id?.trim() || !approval.scope?.action?.trim() || !approval.scope.workspaceRoot?.trim()) {
       throw new Error('Approval ID, action, and workspace root are required.')
     }
+    if (approval.decision !== 'granted' && approval.decision !== 'denied') throw new Error('Approval decision must be granted or denied.')
+    if (approval.decidedBy !== 'user') throw new Error('Approval decision actor is invalid.')
     if (!Number.isFinite(Date.parse(approval.decidedAt))) throw new Error('Approval decision timestamp is invalid.')
+    if (approval.scope.command !== undefined && typeof approval.scope.command !== 'string') throw new Error('Approval command scope is invalid.')
+    if (approval.scope.inputDigest !== undefined && typeof approval.scope.inputDigest !== 'string') throw new Error('Approval input digest scope is invalid.')
     const path = this.path(approval.id)
     await mkdir(join(path, '..'), { recursive: true })
     // Exclusive creation is the immutability boundary: an approval is never updated in place.
@@ -56,6 +60,10 @@ export class FilesystemApprovalRepository implements ApprovalRepository {
       throw error
     } finally {
       await handle.close()
+    }
+    if (process.platform !== 'win32') {
+      const directoryHandle = await open(join(path, '..'), 'r')
+      try { await directoryHandle.sync() } finally { await directoryHandle.close() }
     }
   }
 }
