@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { appendFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -46,6 +46,27 @@ test('serializes concurrent appends for a run', async () => {
       }
     }))
     assert.equal(await store.lastSequence('run-concurrent'), 12)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('discards an incomplete final JSONL record after an interrupted append', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'runframe-event-torn-tail-'))
+  try {
+    const store = new FilesystemExecutionEventStore({ rootDirectory: root })
+    const first = {
+      id: 'event-1', runId: 'run-torn', sequence: 1, kind: 'run.created' as const,
+      occurredAt: new Date().toISOString(), payload: { message: 'created' },
+    }
+    await store.append(first)
+    await appendFile(join(root, 'run-torn', 'events.jsonl'), '{"schemaVersion":1,"event":', 'utf8')
+    assert.deepEqual(await store.read('run-torn'), [first])
+    await store.append({
+      id: 'event-2', runId: 'run-torn', sequence: 2, kind: 'run.state',
+      occurredAt: new Date().toISOString(), payload: { message: 'running' },
+    })
+    assert.equal(await store.lastSequence('run-torn'), 2)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
