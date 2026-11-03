@@ -206,3 +206,5 @@ export { ApprovalService } from '../application/v2/approval-service'
 export { MissionExecutionService, type DispatchMissionOptions, type DispatchMissionResult } from '../application/v2/mission-execution-service'
 export type { MissionRunDispatcher, MissionRunDispatchRequest } from '../ports/v2/mission-run-dispatcher'
 export { LegacyMissionRunDispatcher } from '../adapters/legacy-run/mission-run-dispatcher'
+
+export { inspectRunSchedule, type ScheduledNode, type SchedulerEdge, type ScheduleInspection } from '../application/v2/task-scheduler'
