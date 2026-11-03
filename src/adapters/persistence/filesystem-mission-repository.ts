@@ -19,14 +19,22 @@ async function readJson<T>(path: string): Promise<T | null> {
   }
 }
 
+async function syncDirectory(path: string): Promise<void> {
+  if (process.platform === 'win32') return
+  const handle = await open(path, 'r')
+  try { await handle.sync() } finally { await handle.close() }
+}
+
 async function atomicWrite(path: string, content: string): Promise<void> {
-  await mkdir(join(path, '..'), { recursive: true })
+  const directory = join(path, '..')
+  await mkdir(directory, { recursive: true })
   const temporaryPath = `${path}.${randomUUID()}.tmp`
   try {
     await writeFile(temporaryPath, content, { encoding: 'utf8', flag: 'wx' })
     const handle = await open(temporaryPath, 'r')
     try { await handle.sync() } finally { await handle.close() }
     await rename(temporaryPath, path)
+    await syncDirectory(directory)
   } catch (error) {
     await rm(temporaryPath, { force: true }).catch(() => undefined)
     throw error
@@ -113,5 +121,6 @@ export class FilesystemMissionRepository implements MissionRepository {
     } finally {
       await handle.close()
     }
+    await syncDirectory(this.plansDirectory(plan.missionId))
   }
 }
