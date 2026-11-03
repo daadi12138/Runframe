@@ -88,3 +88,40 @@ test('reclaims a journal lock left by a dead process', async () => {
     await rm(root, { recursive: true, force: true })
   }
 })
+
+test('serializes concurrent stale-lock recovery without stealing the new writer lock', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'runframe-event-stale-race-'))
+  try {
+    const lock = join(root, 'run-race', '.write-lock')
+    await mkdir(lock, { recursive: true })
+    await writeFile(join(lock, 'owner.json'), JSON.stringify({ pid: 2_000_000_000, acquiredAt: Date.now() }))
+    const store = new FilesystemExecutionEventStore({ rootDirectory: root, lockTimeoutMs: 2_000 })
+    const event = {
+      id: 'event-1', runId: 'run-race', sequence: 1, kind: 'run.created' as const,
+      occurredAt: new Date().toISOString(), payload: { message: 'once' },
+    }
+    await Promise.all([
+      store.append(event, { idempotencyKey: 'same-dispatch' }),
+      store.append(event, { idempotencyKey: 'same-dispatch' }),
+    ])
+    assert.equal(await store.lastSequence('run-race'), 1)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('never reclaims a lock owned by a live process', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'runframe-event-live-lock-'))
+  try {
+    const lock = join(root, 'run-live', '.write-lock')
+    await mkdir(lock, { recursive: true })
+    await writeFile(join(lock, 'owner.json'), JSON.stringify({ pid: process.pid, acquiredAt: Date.now() }))
+    const store = new FilesystemExecutionEventStore({ rootDirectory: root, lockTimeoutMs: 30 })
+    await assert.rejects(() => store.append({
+      id: 'event-1', runId: 'run-live', sequence: 1, kind: 'run.created',
+      occurredAt: new Date().toISOString(), payload: {},
+    }), /Timed out acquiring execution journal lock/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
