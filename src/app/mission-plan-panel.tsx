@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 'cancelled'
-type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string }
+type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string }
 type TaskRecord = { id: string; title: string; description?: string; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
 
@@ -23,6 +23,7 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
   const [executorId, setExecutorId] = useState<'codex' | 'claude'>('codex')
   const [executionMode, setExecutionMode] = useState<'read_only' | 'workspace_write'>('read_only')
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
+  const [linkedRunStatus, setLinkedRunStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshMissions = useCallback(async () => {
@@ -54,6 +55,31 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
   }, [selectedId])
 
   const selectedMission = useMemo(() => missions.find(item => item.id === selectedId) ?? null, [missions, selectedId])
+
+  useEffect(() => {
+    if (!selectedMission?.activeRunId) { setLinkedRunStatus(null); return }
+    let cancelled = false
+    void fetch(`/api/runs/${encodeURIComponent(selectedMission.activeRunId)}`)
+      .then(response => response.ok ? response.json() as Promise<{ status: string }> : null)
+      .then(run => { if (!cancelled) setLinkedRunStatus(run?.status ?? null) })
+      .catch(() => { if (!cancelled) setLinkedRunStatus(null) })
+    return () => { cancelled = true }
+  }, [selectedMission?.activeRunId])
+
+  const markDelivered = async () => {
+    if (!selectedId) return
+    setBusy(true); setError(null)
+    try {
+      const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'delivered' }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '确认交付失败')
+      await refreshMissions()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { setBusy(false) }
+  }
 
   const createMission = async () => {
     if (!missionTitle.trim()) return
@@ -141,6 +167,10 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
               <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selectedMission.title}</div>
               <div style={{ marginTop: 5 }}>状态：{selectedMission.status}</div>
               <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>ID：{selectedMission.id}</div>
+              {selectedMission.activeRunId && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>Run：{selectedMission.activeRunId}</div>}
+              {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && (
+                <button style={{ ...buttonStyle, width: '100%', marginTop: 8 }} disabled={busy} onClick={() => void markDelivered()}>确认交付完成</button>
+              )}
             </div>
           )}
         </div>
