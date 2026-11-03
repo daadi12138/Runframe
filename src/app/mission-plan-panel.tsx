@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 'cancelled'
-type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string }
+type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string; acceptanceCriteria?: Array<{ id: string; description: string; required: boolean }> }
 type TaskRecord = { id: string; title: string; description?: string; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
 
@@ -16,6 +16,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const [plan, setPlan] = useState<PlanRecord | null>(null)
   const [missionTitle, setMissionTitle] = useState('')
   const [missionDescription, setMissionDescription] = useState('')
+  const [acceptanceCriteriaText, setAcceptanceCriteriaText] = useState('')
   const [taskTitle, setTaskTitle] = useState('')
   const [dependency, setDependency] = useState('')
   const [draftNodes, setDraftNodes] = useState<TaskRecord[]>([])
@@ -112,11 +113,16 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
     try {
       const response = await fetch('/api/missions', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: missionTitle, description: missionDescription }),
+        body: JSON.stringify({
+          title: missionTitle,
+          description: missionDescription,
+          acceptanceCriteria: acceptanceCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean)
+            .map((description, index) => ({ id: `criterion-${index + 1}`, description, required: true })),
+        }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '创建 Mission 失败')
-      setMissionTitle(''); setMissionDescription('')
+      setMissionTitle(''); setMissionDescription(''); setAcceptanceCriteriaText('')
       await refreshMissions()
       setSelectedId(result.id)
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
@@ -180,6 +186,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
           <strong style={{ fontSize: 13 }}>创建 Mission</strong>
           <input style={inputStyle} placeholder="Mission 标题" value={missionTitle} onChange={event => setMissionTitle(event.target.value)} />
           <textarea style={{ ...inputStyle, minHeight: 86, resize: 'vertical' }} placeholder="目标与范围说明" value={missionDescription} onChange={event => setMissionDescription(event.target.value)} />
+          <textarea style={{ ...inputStyle, minHeight: 76, resize: 'vertical' }} placeholder="验收标准（每行一条，可选）" value={acceptanceCriteriaText} onChange={event => setAcceptanceCriteriaText(event.target.value)} />
           <button style={buttonStyle} disabled={busy || !missionTitle.trim()} onClick={() => void createMission()}>创建 Mission</button>
           <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
           <label style={{ fontSize: 11, color: 'var(--muted)' }}>已保存的 Missions</label>
@@ -191,6 +198,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
             <div style={{ padding: 10, background: 'var(--card)', borderRadius: 7, fontSize: 11, color: 'var(--muted)' }}>
               <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selectedMission.title}</div>
               <div style={{ marginTop: 5 }}>状态：{selectedMission.status}</div>
+              <div style={{ marginTop: 4 }}>验收标准：{selectedMission.acceptanceCriteria?.length ?? 0} 项</div>
               <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>ID：{selectedMission.id}</div>
               {selectedMission.activeRunId && <div style={{ marginTop: 4, overflowWrap: 'anywhere' }}>Run：{selectedMission.activeRunId}</div>}
               {selectedMission.status === 'review' && linkedRunStatus === 'succeeded' && !deliveryApproved && (
