@@ -8,7 +8,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     if (!(await getRun(id))) return Response.json({ error: 'Run not found' }, { status: 404 })
     const store = createDefaultExecutionEventStore()
-    const events = await store.read(id, { afterSequence: 0, limit: 100_000 })
+    const events = await store.read(id)
     const nodes = projectProcessTree(events)
     return Response.json({ runId: id, nodes, lastSequence: events.at(-1)?.sequence ?? 0 })
   } catch (error) {
