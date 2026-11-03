@@ -8,6 +8,7 @@ import { resolveExecutorForRun, type ExecutorConfig } from './executor-config'
 import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
 import type { ExecutionEvent } from './domain/v2/model'
+import { inspectRunSchedule } from './application/v2/task-scheduler'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, recordProjectCommandDecision, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -642,9 +643,10 @@ async function processRun(id: string): Promise<void> {
     }
     while (true) {
       run = await getRun(id); if (!run || run.status !== 'running') return
-      const ready = run.nodes.find(node => node.state === 'idle' && parentsSucceeded(run!, node.id))
+      const schedule = inspectRunSchedule(run.nodes, run.edges)
+      const ready = schedule.nextReadyNode
       if (!ready) {
-        if (run.nodes.every(node => node.state === 'success' || node.state === 'skipped')) {
+        if (schedule.complete) {
           run.status = 'succeeded'; run.workflowCompletedAt = new Date().toISOString(); run.endedAt = run.workflowCompletedAt
           if (run.worktreePath) {
             const delivery = await buildDeliveryApproval(run)
@@ -661,7 +663,7 @@ async function processRun(id: string): Promise<void> {
           } else appendLog(run, '工作流已成功完成')
           await saveRun(run)
         }
-        else if (!run.nodes.some(node => node.state === 'waiting' || node.state === 'running')) { run.status = 'failed'; run.endedAt = new Date().toISOString(); appendLog(run, '工作流无法继续：前置节点未成功'); await saveRun(run) }
+        else if (schedule.blocked) { run.status = 'failed'; run.endedAt = new Date().toISOString(); appendLog(run, '工作流无法继续：前置节点未成功'); await saveRun(run) }
         return
       }
       if (ready.kind === '验证') {
