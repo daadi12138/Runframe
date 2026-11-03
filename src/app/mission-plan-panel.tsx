@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 'cancelled'
 type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string; acceptanceCriteria?: Array<{ id: string; description: string; required: boolean }> }
-type TaskRecord = { id: string; title: string; description?: string; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
+type TaskRecord = { id: string; title: string; description?: string; acceptanceCriteria?: string[]; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
 
 const inputStyle = { padding: '9px 11px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--ink)', fontSize: 12, minWidth: 0 } as const
@@ -18,6 +18,8 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const [missionDescription, setMissionDescription] = useState('')
   const [acceptanceCriteriaText, setAcceptanceCriteriaText] = useState('')
   const [taskTitle, setTaskTitle] = useState('')
+  const [taskDescription, setTaskDescription] = useState('')
+  const [taskCriteriaText, setTaskCriteriaText] = useState('')
   const [dependency, setDependency] = useState('')
   const [draftNodes, setDraftNodes] = useState<TaskRecord[]>([])
   const [busy, setBusy] = useState(false)
@@ -133,8 +135,17 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
     const title = taskTitle.trim()
     if (!title) return
     const id = `task-${draftNodes.length + 1}-${Date.now().toString(36)}`
-    setDraftNodes(nodes => [...nodes, { id, title, status: 'pending', dependsOn: dependency ? [dependency] : [] }])
-    setTaskTitle(''); setDependency('')
+    setDraftNodes(nodes => [...nodes, {
+      id,
+      title,
+      ...(taskDescription.trim() ? { description: taskDescription.trim() } : {}),
+      ...(taskCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean).length
+        ? { acceptanceCriteria: taskCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) }
+        : {}),
+      status: 'pending',
+      dependsOn: dependency ? [dependency] : [],
+    }])
+    setTaskTitle(''); setTaskDescription(''); setTaskCriteriaText(''); setDependency('')
   }
 
   const savePlan = async () => {
@@ -227,6 +238,8 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
             </select>
             <button style={buttonStyle} onClick={addTask} disabled={!taskTitle.trim()}>添加</button>
           </div>
+          <textarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} placeholder="任务说明（可选）" value={taskDescription} onChange={event => setTaskDescription(event.target.value)} />
+          <textarea style={{ ...inputStyle, minHeight: 54, resize: 'vertical' }} placeholder="任务验收标准（每行一条，可选）" value={taskCriteriaText} onChange={event => setTaskCriteriaText(event.target.value)} />
           {draftNodes.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {draftNodes.map((node, index) => (
@@ -234,7 +247,8 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
                   <span style={{ color: 'var(--quiet)', fontSize: 11, fontFamily: 'var(--mono)' }}>{String(index + 1).padStart(2, '0')}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{node.title}</div>
-                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>依赖：{node.dependsOn.length ? node.dependsOn.map(id => draftNodes.find(item => item.id === id)?.title ?? id).join(', ') : '无'}</div>
+                    {node.description && <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>{node.description}</div>}
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3 }}>依赖：{node.dependsOn.length ? node.dependsOn.map(id => draftNodes.find(item => item.id === id)?.title ?? id).join(', ') : '无'} · 验收：{node.acceptanceCriteria?.length ?? 0} 项</div>
                   </div>
                   <span className="status-pill pending">{node.status}</span>
                   <button style={{ ...buttonStyle, padding: '4px 8px' }} onClick={() => setDraftNodes(nodes => nodes.filter(item => item.id !== node.id).map(item => ({ ...item, dependsOn: item.dependsOn.filter(id => id !== node.id) })))}>移除</button>
