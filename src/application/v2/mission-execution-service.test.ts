@@ -76,3 +76,28 @@ test('does not start another run while the previous run is awaiting delivery app
   )
   assert.equal(dispatcher.request, undefined)
 })
+
+test('serializes concurrent dispatches for one mission to prevent duplicate runs', async () => {
+  const repository = new MemoryRepository()
+  const missionService = new MissionService(repository, () => new Date(), () => 'mission-dispatch-race')
+  const mission = await missionService.create({ title: 'No duplicate dispatch' })
+  await missionService.savePlan(mission.id, [{ id: 'task', title: 'Task', status: 'pending', dependsOn: [] }])
+  let dispatchCount = 0
+  const dispatcher: MissionRunDispatcher = {
+    async dispatch() {
+      dispatchCount += 1
+      await new Promise(resolve => setTimeout(resolve, 5))
+      return { runId: `run-${dispatchCount}` }
+    },
+    async getStatus() { return null },
+    async cancel() {},
+  }
+  const execution = new MissionExecutionService(repository, dispatcher)
+  const results = await Promise.allSettled([
+    execution.dispatch(mission.id, { executorId: 'codex', executionMode: 'read_only' }),
+    execution.dispatch(mission.id, { executorId: 'codex', executionMode: 'read_only' }),
+  ])
+  assert.equal(dispatchCount, 1)
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 1)
+  assert.equal(results.filter(result => result.status === 'rejected').length, 1)
+})
