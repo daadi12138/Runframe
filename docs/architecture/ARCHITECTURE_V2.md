@@ -121,7 +121,7 @@ Recovery invariants:
 - [x] Retain the `architecture-v2.yml` GitHub Actions workflow for unit tests, strict TypeScript checking, and the Next.js production build; CI execution status remains unverified and must be checked from Actions before merge.
 
 ### Phase 3 — workbench
-- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including Mission acceptance criteria, task descriptions and acceptance criteria, multi-dependency editing, and immutable Plan revision saves.
+- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including Mission acceptance criteria, task descriptions and acceptance criteria, multi-dependency editing, per-task Codex/Claude assignment with Mission-default inheritance, and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
 - [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; persist the exact Mission and Plan Revision reference on the Run and reconcile completed or failed Runs into Mission review state.
 - [x] Gate Mission delivery on a persisted Run delivery receipt: a successful Run alone cannot mark a Mission delivered; changed files require Worktree diff approval in the execution timeline, no-change runs record an explicit no-change receipt, and the user then confirms Mission delivery.
