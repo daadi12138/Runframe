@@ -111,7 +111,7 @@ Recovery invariants:
 - [x] Add Mission and Plan REST APIs, a MissionExecutionService use case, and a MissionRunDispatcher port. The LegacyMissionRunDispatcher converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution without putting orchestration logic in the HTTP route.
 - [x] Extract a pure dependency scheduler/resolver and use it from the existing Run orchestration loop.
 - [ ] Extract the policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
-- [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch.
+- [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch. The current registry is a contract only; Mission execution still enters the legacy Run Manager and its Codex/Claude adapters.
 - [ ] Keep facade exports stable through `src/core/index.ts`.
 - [ ] Add contract tests around legacy Run/Manifest compatibility and migration behavior.
 
@@ -139,7 +139,7 @@ Recovery invariants:
 - [x] Timeline events can be replayed from the durable journal after SSE notifications are lost.
 - [x] No new destructive Git action is introduced by V2 persistence or planning.
 - [x] Active-attempt recovery reconciles the latest attempt facts from the durable journal, while retaining the legacy manifest as the compatibility snapshot for other Run state.
-- [ ] The Mission Plan is dispatchable through V2 orchestration and runtime adapters.
+- [x] The Mission Plan is dispatchable through V2 Mission orchestration into the compatibility Run / Worktree engine with immutable Plan provenance.\n- [ ] The Mission Plan is dispatched by registered V2 AgentRuntime adapters with capability-gated streaming, cancellation, and session lifecycle semantics.
 
 ## 10. Initial repository boundaries
 
