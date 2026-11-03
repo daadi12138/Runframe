@@ -10,6 +10,7 @@ export type ExecutionEventKind =
   | 'attempt.completed'
   | 'attempt.failed'
   | 'attempt.interrupted'
+  | 'attempt.paused'
   | 'attempt.resumed'
   | 'attempt.process_attached'
   | 'attempt.cancelled'
