@@ -26,6 +26,7 @@ test('pauses an Attempt when its persisted process is still alive', () => {
   const result = reconcileInterruptedAttempts(nodes, [event('attempt.started', 'attempt-1')], pid => pid === 42, '2026-01-02T00:00:00.000Z')
   assert.equal(result.nodes[0].state, 'paused')
   assert.equal(result.nodes[0].attempts[0].status, 'paused')
+  assert.equal(result.nodes[0].attempts[0].endedAt, undefined)
   assert.equal(result.hasLiveProcess, true)
 })
 
