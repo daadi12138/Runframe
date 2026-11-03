@@ -97,6 +97,7 @@ export function MissionHub({
   const [runs, setRuns] = useState<RunWorkspaceRun[]>([])
   const [executionEvents, setExecutionEvents] = useState<PersistedExecutionEvent[]>([])
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
+  const [v2ActiveRunId, setV2ActiveRunId] = useState<string | null>(null)
   const [goalInput, setGoalInput] = useState('')
   const [executionMode, setExecutionMode] = useState<ExecutionMode>('autonomous')
   const [dispatching, setDispatching] = useState(false)
@@ -140,8 +141,8 @@ export function MissionHub({
   }, [syncMissionData])
 
   const activeRun = useMemo(() => {
-    return runs.find(r => r.id === (activeRunId || mission?.runId)) || runs[0] || null
-  }, [runs, mission, activeRunId])
+    return runs.find(r => r.id === (v2ActiveRunId || mission?.runId || activeRunId)) || runs[0] || null
+  }, [runs, mission, activeRunId, v2ActiveRunId])
 
   useEffect(() => {
     if (!activeRun?.id) { setExecutionEvents([]); return }
@@ -538,7 +539,7 @@ export function MissionHub({
 
       {/* 4. Tab Content Area */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {activeTab === 'v2-plan' && <MissionPlanPanel onRunStarted={runId => { setActiveRunId(runId); setActiveTab('timeline') }} />}
+        {activeTab === 'v2-plan' && <MissionPlanPanel onRunStarted={runId => { setV2ActiveRunId(runId); setActiveTab('timeline') }} />}
         {/* Tab 1: Kanban Board View */}
         {activeTab === 'kanban' && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1064,6 +1065,7 @@ export function MissionHub({
                     justifyContent: 'space-between',
                   }}
                   onClick={() => {
+                    setV2ActiveRunId(null)
                     setActiveRunId(r.id)
                     setShowHistoryModal(false)
                     setActionNotice({ type: 'info', text: `已载入历史任务 ${r.id}` })
