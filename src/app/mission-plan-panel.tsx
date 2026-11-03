@@ -8,7 +8,27 @@ type TaskRecord = { id: string; title: string; description?: string; acceptanceC
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
 type MissionReviewEvidence = {
   plan: PlanRecord
-  run: { id: string; status: string; mission: { planRevision: number } }
+  run: {
+    id: string
+    status: string
+    mission: { planRevision: number }
+    nodes: Array<{
+      id: string
+      kind: string
+      state: string
+      attempts: Array<{
+        id: string
+        attempt: number
+        executorId: string
+        status: string
+        startedAt: string
+        endedAt?: string
+        process?: { pid: number; exitCode?: number | null; signal?: string | null }
+        inputArtifactIds: string[]
+        traceOmittedCount: number
+      }>
+    }>
+  }
   evidence: {
     processTree: Array<{ id: string; parentId?: string; kind: string; processId?: number; sessionId?: string; startedAt: string; endedAt?: string; exitCode?: number; exitSignal?: string }>
     artifacts: Array<{ id: string; type: string; contentHash: string; attemptId?: string }>
@@ -370,6 +390,27 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               </div>
             ))}
           </div>
+          {reviewEvidence.run.nodes.some(node => node.attempts.length > 0) && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Task Attempt Provenance</div>
+              {reviewEvidence.run.nodes.flatMap(node => node.attempts.map(attempt => ({ node, attempt }))).map(({ node, attempt }) => (
+                <div key={attempt.id} style={{ padding: '7px 0', borderTop: '1px solid var(--line)', fontSize: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <strong>{node.id} · Attempt {attempt.attempt}</strong>
+                    <span>{attempt.status}</span>
+                  </div>
+                  <div style={{ color: 'var(--muted)', marginTop: 3 }}>
+                    {attempt.executorId} · {attempt.id} · {new Date(attempt.startedAt).toLocaleTimeString()}
+                    {attempt.endedAt ? ` → ${new Date(attempt.endedAt).toLocaleTimeString()}` : ''}
+                    {attempt.process?.pid ? ` · PID ${attempt.process.pid}` : ''}
+                    {attempt.process?.exitCode === null ? ` · ${attempt.process.signal ?? 'exit status unknown'}` : attempt.process?.exitCode === undefined ? '' : ` · exit ${attempt.process.exitCode}`}
+                  </div>
+                  {attempt.traceOmittedCount > 0 && <div style={{ color: 'var(--muted)', marginTop: 2 }}>{attempt.traceOmittedCount} earlier trace entries omitted from the bounded manifest view.</div>}
+                  {attempt.inputArtifactIds.length > 0 && <div style={{ color: 'var(--muted)', marginTop: 2 }}>Input artifacts: {attempt.inputArtifactIds.join(', ')}</div>}
+                </div>
+              ))}
+            </div>
+          )}
           {reviewEvidence.evidence.processTree.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Observed Session / OS Process Tree</div>
