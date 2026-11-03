@@ -71,6 +71,12 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
     return join(this.directory(runId), 'events.jsonl')
   }
 
+  private async syncRunDirectory(runId: string): Promise<void> {
+    if (process.platform === 'win32') return
+    const handle = await open(this.directory(runId), 'r')
+    try { await handle.sync() } finally { await handle.close() }
+  }
+
   private async withRunLock<T>(runId: string, operation: () => Promise<T>): Promise<T> {
     const directory = this.directory(runId)
     await mkdir(directory, { recursive: true })
@@ -200,6 +206,7 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
       } finally {
         await handle.close()
       }
+      await this.syncRunDirectory(runId)
     })
   }
 
