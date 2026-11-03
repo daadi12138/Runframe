@@ -15,6 +15,7 @@ test('persists ordered events, supports replay, and deduplicates idempotent retr
     })
     await store.append(event(1), { idempotencyKey: 'dispatch-1' })
     await store.append(event(1), { idempotencyKey: 'dispatch-1' })
+    await assert.rejects(() => store.append({ ...event(1), payload: { changed: true } }, { idempotencyKey: 'dispatch-1' }), /different event/)
     await store.append(event(2))
     assert.equal(await store.lastSequence('run-test'), 2)
     assert.deepEqual((await store.read('run-test', { afterSequence: 1 })).map(item => item.sequence), [2])
