@@ -442,7 +442,7 @@ export async function cancelRun(id: string): Promise<RunSnapshot | null> {
   queuedRuns.delete(id)
   for (const node of run.nodes) {
     if (node.state === 'idle' || node.state === 'waiting') node.state = 'cancelled'
-    if (node.state === 'running') { node.state = 'cancelled'; const attempt = node.attempts.at(-1); if (attempt) { terminateProcess(activeProcesses.get(attempt.id), 'SIGTERM'); attempt.status = 'cancelled'; attempt.endedAt = new Date().toISOString(); attempt.exitReason = 'cancelled_by_user' } }
+    if (node.state === 'running') { node.state = 'cancelled'; const attempt = node.attempts.at(-1); if (attempt) { await cancelAgentAttempt(attempt); attempt.status = 'cancelled'; attempt.endedAt = new Date().toISOString(); attempt.exitReason = 'cancelled_by_user' } }
   }
   delete run.pendingCommandApproval
   run.status = 'cancelled'; run.endedAt = new Date().toISOString(); appendLog(run, '运行已取消'); await saveRun(run); return run
@@ -868,6 +868,15 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
   if (node.kind === '验证') return executeValidation(run, node, attempt)
   if (node.kind === '交付') { const diff = await runProcess('git', ['diff', '--no-ext-diff', '--stat', run.baseGitRef ?? 'HEAD'], run.worktreePath, 30_000); const status = await runProcess('git', ['status', '--short'], run.worktreePath, 15_000); return reportPayload('Git 交付报告已生成', `Worktree: ${run.worktreePath}\nBranch: ${run.branchName}\n\nChanged files:\n${status || '(none)'}\n\nDiff stat:\n${diff || '(none)'}`) }
   return reportPayload(`${node.kind} 节点已完成`, `节点 ${node.id} 已由本地运行时完成。`)
+}
+
+async function cancelAgentAttempt(attempt: StepAttempt): Promise<void> {
+  const runtime = agentRuntimes.list().find(candidate => candidate.id === attempt.executorId)
+  if (runtime?.capabilities.cancellation && runtime.cancel) {
+    await runtime.cancel(attempt.id)
+    return
+  }
+  terminateProcess(activeProcesses.get(attempt.id), 'SIGTERM')
 }
 
 async function executeAgentRuntime(
