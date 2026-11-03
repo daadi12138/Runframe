@@ -14,6 +14,7 @@ import { AgentRunnerRegistry } from './adapters/agent-runtime/runner-registry'
 import { AgentRuntimeRegistry } from './adapters/agent-runtime/registry'
 import { OneShotCliAgentRuntime } from './adapters/agent-runtime/one-shot-cli-runtime'
 import { AgentAttemptService } from './application/v2/agent-attempt-service'
+import { AgentExecutionPolicy } from './application/v2/agent-execution-policy'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, recordProjectCommandDecision, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -156,6 +157,7 @@ function createAgentRuntimeRegistry(runners: AgentRunnerRegistry<AgentRunner>): 
 }
 let agentRuntimes = createAgentRuntimeRegistry(agentAdapters)
 const agentAttemptService = new AgentAttemptService(runtimeId => agentRuntimes.get(runtimeId))
+const agentExecutionPolicy = new AgentExecutionPolicy(resolveExecutorForRun, id => agentAdapters.has(id), id => agentRuntimes.list().some(runtime => runtime.id === id))
 const shellTool = new ShellTool()
 const agentTool = new AgentTool()
 
@@ -859,33 +861,11 @@ async function cancelAgentAttempt(attempt: StepAttempt): Promise<void> {
 }
 
 async function validateAgentExecutors(nodes: Array<Omit<RunNode, 'state' | 'attempts'>>): Promise<void> {
-  const requestedIds = [...new Set(nodes.filter(node => node.kind === 'Agent').map(node => node.executorId ?? 'codex'))]
-  if (!requestedIds.length) return
-  for (const id of requestedIds) {
-    const executor = await resolveExecutorForRun(id)
-    assertExecutorReady(executor, id)
-    if (!agentAdapters.has(executor.id) || !agentRuntimes.list().some(runtime => runtime.id === executor.id)) throw new Error(`Executor runtime adapter not implemented: ${executor.id}`)
-  }
-}
-
-function assertExecutorReady(executor: ExecutorConfig | undefined, requestedId: string): asserts executor is ExecutorConfig {
-  if (!executor || executor.status !== 'available') throw new Error(`Executor is unavailable: ${requestedId}`)
-  if (executor.authentication !== 'authenticated' && executor.authentication !== 'api_key') {
-    throw new Error(`Executor requires login before starting a run: ${executor.name}`)
-  }
+  await agentExecutionPolicy.validate(nodes)
 }
 
 function agentEnvironment(): NodeJS.ProcessEnv {
-  const coreKeys = [
-    'PATH', 'HOME', 'TMPDIR', 'SHELL', 'USER', 'LOGNAME', 'TERM', 'COLORTERM',
-    'LANG', 'LC_ALL', 'LC_CTYPE', 'NO_COLOR', 'FORCE_COLOR',
-    'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'XDG_DATA_HOME',
-    'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
-    'SSL_CERT_FILE', 'SSL_CERT_DIR', 'CODEX_CA_CERTIFICATE',
-  ]
-  const allowed = new Set(coreKeys)
-  for (const key of Object.keys(process.env)) if (key.startsWith('LC_')) allowed.add(key)
-  return Object.fromEntries([...allowed].flatMap(key => process.env[key] === undefined ? [] : [[key, process.env[key]]])) as NodeJS.ProcessEnv
+  return agentExecutionPolicy.createEnvironment()
 }
 
 async function executeValidation(run: RunSnapshot, node: RunNode, attempt: StepAttempt): Promise<{ summary: string; content: string }> {
