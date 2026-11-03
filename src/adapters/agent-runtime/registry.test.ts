@@ -51,3 +51,11 @@ test('disposes the previous adapter when replacing a runtime', async () => {
   assert.equal(disposed, true)
   assert.equal(registry.get('codex').id, 'codex')
 })
+
+test('rejects a runtime with an omitted capability field', () => {
+  const registry = new AgentRuntimeRegistry()
+  const invalid = runtime({
+    capabilities: { streamingOutput: true, structuredEvents: false, cancellation: true, pause: false, resume: false, attach: false } as AgentRuntime['capabilities'],
+  })
+  assert.throws(() => registry.register(invalid), /every capability/)
+})
