@@ -44,6 +44,7 @@ export type RunWorkspaceRun = {
   endedAt?: string
   branchName?: string
   workflow?: { workflowId: string; workflowName: string; revision: number; publishedAt: string }
+  mission?: { missionId: string; missionTitle: string; planRevisionId: string; planRevision: number }
   input: { text: string; attachments: Array<{ id: string; name: string; mediaType: string; byteLength: number }> }
   nodes: Array<{ id: string; kind: string; state: string; attempts: unknown[] }>
   edges: Array<{ from: string; to: string }>
@@ -695,7 +696,7 @@ export function MissionHub({
               <div>
                 <h3 style={{ margin: 0, color: 'var(--ink)', fontSize: 16 }}>实时执行时序与 Agent 思考轨迹</h3>
                 <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: 12 }}>
-                  当前任务：{activeRun?.workflow?.workflowName || mission?.goal || '自主规划流'} (ID: {activeRun?.id || mission?.id || '—'})
+                  当前任务：{activeRun?.mission?.missionTitle || activeRun?.workflow?.workflowName || mission?.goal || '自主规划流'}{activeRun?.mission ? ` · Plan r${activeRun.mission.planRevision}` : ''} (ID: {activeRun?.id || mission?.id || '—'})
                 </p>
               </div>
               <span className={`status-pill ${activeRun?.status === 'succeeded' ? 'valid' : activeRun?.status === 'failed' ? 'failed' : 'pending'}`}>
