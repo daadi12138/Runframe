@@ -5,5 +5,6 @@ export interface MissionRepository {
   listMissions(): Promise<Mission[]>
   saveMission(mission: Mission): Promise<void>
   getLatestPlan(missionId: string): Promise<PlanRevision | null>
+  getPlanRevision(missionId: string, revision: number): Promise<PlanRevision | null>
   savePlan(plan: PlanRevision): Promise<void>
 }
