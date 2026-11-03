@@ -190,3 +190,7 @@ export type { MissionRepository } from '../ports/v2/mission-repository'
 export { MissionService, type CreateMissionInput } from '../application/v2/mission-service'
 
 export { createDefaultMissionRepository } from '../adapters/persistence/default-mission-repository'
+
+export { FilesystemApprovalRepository } from '../adapters/persistence/filesystem-approval-repository'
+export type { ApprovalRepository } from '../ports/v2/approval-repository'
+export { ApprovalService } from '../application/v2/approval-service'
