@@ -219,3 +219,5 @@ export { buildMissionRunCommand, type MissionRunCommand } from '../application/v
 export { reconcileInterruptedAttempts, type AttemptRecoveryResult, type RecoverableAttempt, type RecoverableNode } from '../application/v2/attempt-recovery'
 
 export { reconcileMissionRun, type LinkedRunStatus, type MissionRunLink } from '../application/v2/mission-reconciliation'
+
+export { validateDiffReview, validateRelativePath, type DiffReviewInput, type ValidatedDiffReview } from '../application/v2/diff-review'
