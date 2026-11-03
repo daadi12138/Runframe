@@ -129,8 +129,8 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
       if (options.idempotencyKey) {
         const existing = records.find(record => record.idempotencyKey === options.idempotencyKey)
         if (existing) {
-          if (existing.event.id !== event.id) {
-            throw new Error(`Idempotency key already used by another event: ${options.idempotencyKey}`)
+          if (existing.event.id !== event.id || JSON.stringify(existing.event) !== JSON.stringify(event)) {
+            throw new Error(`Idempotency key already used by a different event: ${options.idempotencyKey}`)
           }
           return
         }
