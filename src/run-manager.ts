@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { appendFile, cp, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
@@ -11,6 +11,7 @@ import type { ExecutionEvent } from './domain/v2/model'
 import { inspectRunSchedule } from './application/v2/task-scheduler'
 import { reconcileInterruptedAttempts } from './application/v2/attempt-recovery'
 import { AgentRunnerRegistry } from './adapters/agent-runtime/runner-registry'
+import { activeProcesses, isProcessAlive, terminateProcess, terminateRecordedProcess } from './adapters/process/process-supervisor'
 import { AgentRuntimeRegistry } from './adapters/agent-runtime/registry'
 import { OneShotCliAgentRuntime } from './adapters/agent-runtime/one-shot-cli-runtime'
 import { AgentAttemptService } from './application/v2/agent-attempt-service'
@@ -94,7 +95,6 @@ const journalOutputTextLimit = 4_000
 const publicFinalResponseLimit = 100_000
 const publicTraceSchemaVersion = 1 as const
 const activeRuns = new Set<string>()
-const activeProcesses = new Map<string, ChildProcess>()
 const pendingRunWrites = new Map<string, Promise<void>>()
 const queuedRuns = new Set<string>()
 let recoveryStarted = false
@@ -1278,26 +1278,6 @@ function legacyNodeWriteMode(node: Pick<RunNode, 'id' | 'outputType'>): boolean 
 function nodeCanWrite(node: Pick<RunNode, 'id' | 'outputType' | 'executionMode'>): boolean {
   return node.executionMode === 'workspace_write' || (node.executionMode === undefined && legacyNodeWriteMode(node))
 }
-function isProcessAlive(pid: number): boolean {
-  if (!Number.isSafeInteger(pid) || pid < 1) return false
-  try { process.kill(pid, 0); return true } catch { return false }
-}
-function terminateRecordedProcess(pid: number | undefined): boolean {
-  if (!pid || !Number.isSafeInteger(pid) || pid < 1 || pid === process.pid) return false
-  try {
-    if (process.platform !== 'win32') process.kill(-pid, 'SIGTERM')
-    else process.kill(pid, 'SIGTERM')
-    // A detached executor may ignore SIGTERM; force-stop it before a new
-    // Attempt is created so two threads cannot mutate the same Worktree.
-    if (isProcessAlive(pid)) {
-      if (process.platform !== 'win32') process.kill(-pid, 'SIGKILL')
-      else process.kill(pid, 'SIGKILL')
-    }
-    return true
-  } catch {
-    try { process.kill(pid, 'SIGKILL'); return true } catch { return false }
-  }
-}
 function classifyFailure(message: string): RunFailureCategory {
   if (/timed out|timeout|etimedout/i.test(message)) return 'timeout'
   if (/TS\d{4}|cannot find module|module or type declarations|syntaxerror|type error|vite\s+build|compilation failed|build failed/i.test(message)) return 'compilation'
@@ -2140,12 +2120,3 @@ async function runProcess(command: string, args: string[], cwd: string, timeoutM
   })
 }
 
-function terminateProcess(child: ChildProcess | undefined, signal: NodeJS.Signals): void {
-  if (!child?.pid) return
-  try {
-    if (process.platform !== 'win32') process.kill(-child.pid, signal)
-    else child.kill(signal)
-  } catch {
-    try { child.kill(signal) } catch { /* The process may already have exited. */ }
-  }
-}
