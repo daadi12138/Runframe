@@ -137,7 +137,7 @@ export function isProjectCommandApproved(project: Pick<ProjectConfig, 'environme
   return Boolean(approval && sameCommandSpec(approval, command))
 }
 
-function projectCommandApprovalScope(project: ProjectConfig, key: ProjectCommandKey, command: CommandSpec) {
+function projectCommandApprovalScope(project: ProjectConfig, key: ProjectCommandKey, command: CommandSpec, workspaceRoot = project.repositoryPath) {
   const inputDigest = createHash('sha256').update(JSON.stringify({
     command: command.command,
     cwd: command.cwd,
@@ -146,10 +146,23 @@ function projectCommandApprovalScope(project: ProjectConfig, key: ProjectCommand
   })).digest('hex')
   return {
     action: `project.validation.${key}`,
-    workspaceRoot: project.repositoryPath,
+    workspaceRoot,
     command: command.command,
     inputDigest,
   }
+}
+
+export async function recordProjectCommandDecision(
+  project: ProjectConfig,
+  key: ProjectCommandKey,
+  command: CommandSpec,
+  decision: 'granted' | 'denied',
+  workspaceRoot = project.repositoryPath,
+): Promise<void> {
+  await new ApprovalService(createDefaultApprovalRepository()).decide(
+    projectCommandApprovalScope(project, key, command, workspaceRoot),
+    decision,
+  )
 }
 
 export async function isProjectCommandApprovedWithAudit(
@@ -176,7 +189,7 @@ export async function approveProjectCommand(key: ProjectCommandKey, expectedComm
   if (!command) throw new Error(`No detected ${key} command is available for this project`)
   if (expectedCommand && !sameCommandSpec(command, expectedCommand)) throw new Error('The detected command changed. Start the run again to review the current command.')
   const now = new Date().toISOString()
-  await new ApprovalService(createDefaultApprovalRepository()).decide(projectCommandApprovalScope(project, key, command), 'granted')
+  await recordProjectCommandDecision(project, key, command, 'granted')
   project.environment = {
     ...project.environment,
     version: project.environment.version + 1,
@@ -196,7 +209,7 @@ export async function revokeProjectCommand(key: ProjectCommandKey): Promise<Proj
   if (!project.environment.commandAllowlist[key]) return project
   const approvedCommand = project.environment.commands[key]
   if (approvedCommand) {
-    await new ApprovalService(createDefaultApprovalRepository()).decide(projectCommandApprovalScope(project, key, approvedCommand), 'denied')
+    await recordProjectCommandDecision(project, key, approvedCommand, 'denied')
   }
   const now = new Date().toISOString()
   const commandAllowlist = { ...project.environment.commandAllowlist }
