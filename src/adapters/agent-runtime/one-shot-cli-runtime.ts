@@ -95,7 +95,16 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
   output(sessionId: string, signal?: AbortSignal): AsyncIterable<AgentOutputEvent> {
     const queue = this.sessions.get(sessionId)
     if (!queue) throw new Error(`Unknown runtime session: ${sessionId}`)
-    return queue.iterate(signal)
+    const sessions = this.sessions
+    return {
+      async *[Symbol.asyncIterator]() {
+        try {
+          yield* queue.iterate(signal)
+        } finally {
+          sessions.delete(sessionId)
+        }
+      },
+    }
   }
 
   async dispose(): Promise<void> {
