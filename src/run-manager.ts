@@ -550,7 +550,7 @@ export async function resumeInterruptedRuns(): Promise<void> {
     }
     const latestAttemptEvents = new Map<string, (typeof journal)[number]>()
     for (const event of journal) {
-      if (event.attemptId) latestAttemptEvents.set(event.attemptId, event)
+      if (event.attemptId && event.kind.startsWith('attempt.')) latestAttemptEvents.set(event.attemptId, event)
     }
 
     let hasLiveProcess = false
