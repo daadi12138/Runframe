@@ -120,7 +120,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
         body: JSON.stringify({
           title: missionTitle,
           description: missionDescription,
-          acceptanceCriteria: acceptanceCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean)
+          acceptanceCriteria: acceptanceCriteriaText.split(/\r?\n/).map(value => value.trim()).filter(Boolean)
             .map((description, index) => ({ id: `criterion-${index + 1}`, description, required: true })),
         }),
       })
@@ -141,8 +141,8 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
       id,
       title,
       ...(taskDescription.trim() ? { description: taskDescription.trim() } : {}),
-      ...(taskCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean).length
-        ? { acceptanceCriteria: taskCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) }
+      ...(taskCriteriaText.split(/\r?\n/).map(value => value.trim()).filter(Boolean).length
+        ? { acceptanceCriteria: taskCriteriaText.split(/\r?\n/).map(value => value.trim()).filter(Boolean) }
         : {}),
       status: 'pending',
       dependsOn: dependencies,
