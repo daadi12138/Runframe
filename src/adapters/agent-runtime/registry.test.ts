@@ -59,3 +59,11 @@ test('rejects a runtime with an omitted capability field', () => {
   })
   assert.throws(() => registry.register(invalid), /every capability/)
 })
+
+test('rejects a runtime that omits declared capability fields', () => {
+  const registry = new AgentRuntimeRegistry()
+  const invalid = runtime({
+    capabilities: { streamingOutput: true } as unknown as AgentRuntime['capabilities'],
+  })
+  assert.throws(() => registry.register(invalid), /must declare every capability/)
+})
