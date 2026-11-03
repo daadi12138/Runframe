@@ -205,6 +205,7 @@ export { MissionExecutionService, type DispatchMissionOptions, type DispatchMiss
 export type { MissionRunDispatcher, MissionRunDispatchRequest } from '../ports/v2/mission-run-dispatcher'
 export { LegacyMissionRunDispatcher } from '../adapters/legacy-run/mission-run-dispatcher'
 
-export { MissionDispatchService, type DispatchMissionInput } from '../application/v2/mission-dispatch-service'
-export type { MissionRunEngine, MissionRunRequest, MissionRunReceipt } from '../ports/v2/mission-run-engine'
-export { LegacyRunEngineAdapter } from '../adapters/run-engine/legacy-run-engine-adapter'
+
+export { MissionExecutionService, type DispatchMissionOptions, type DispatchMissionResult } from '../application/v2/mission-execution-service'
+export type { MissionRunDispatcher, MissionRunDispatchRequest } from '../ports/v2/mission-run-dispatcher'
+export { LegacyMissionRunDispatcher } from '../adapters/legacy-run/mission-run-dispatcher'
