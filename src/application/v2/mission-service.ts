@@ -20,13 +20,20 @@ export class MissionService {
   async create(input: CreateMissionInput): Promise<Mission> {
     const title = input.title.trim()
     if (!title) throw new Error('Mission title is required.')
+    const criteria = input.acceptanceCriteria ?? []
+    const criterionIds = new Set<string>()
+    for (const criterion of criteria) {
+      if (!criterion.id.trim() || !criterion.description.trim()) throw new Error('Acceptance criteria need an ID and description.')
+      if (criterionIds.has(criterion.id)) throw new Error(`Duplicate acceptance criterion ID: ${criterion.id}`)
+      criterionIds.add(criterion.id)
+    }
     const timestamp = this.now().toISOString()
     const mission: Mission = {
       id: this.createId(),
       title,
       description: input.description?.trim() ?? '',
       status: 'draft',
-      acceptanceCriteria: (input.acceptanceCriteria ?? []).map(criterion => ({ ...criterion })),
+      acceptanceCriteria: criteria.map(criterion => ({ ...criterion })),
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -45,6 +52,9 @@ export class MissionService {
   async transition(missionId: string, nextStatus: MissionStatus): Promise<Mission> {
     const mission = await this.repository.getMission(missionId)
     if (!mission) throw new Error(`Mission not found: ${missionId}`)
+    if (nextStatus === 'planned' || nextStatus === 'running') {
+      if (!(await this.repository.getLatestPlan(missionId))) throw new Error('A saved Plan Revision is required before execution.')
+    }
     const updated: Mission = {
       ...mission,
       status: transitionMission(mission.status, nextStatus),
