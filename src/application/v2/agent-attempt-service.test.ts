@@ -35,3 +35,20 @@ test('fails clearly when a runtime does not declare cancellation support', async
   const service = new AgentAttemptService(() => runtime)
   await assert.rejects(service.cancel('readonly', 's'), /does not support capability "cancellation"/)
 })
+
+test('rejects structured events from runtimes that did not declare the capability', async () => {
+  const runtime = new OneShotCliAgentRuntime('bad-runtime', async request => ({ output: request.prompt }), async () => undefined)
+  const unsafe = {
+    ...runtime,
+    capabilities: { ...runtime.capabilities, structuredEvents: false },
+    async *output(sessionId: string) {
+      yield { sessionId, stream: 'system' as const, text: 'unexpected', occurredAt: '2026-01-01T00:00:00.000Z', event: { type: 'result', payload: { output: 'no' } } }
+    },
+  }
+  const service = new AgentAttemptService(() => unsafe)
+  await assert.rejects(service.execute('bad-runtime', {
+    attemptId: 'attempt-unsafe',
+    workspaceRoot: '/worktree',
+    prompt: 'test',
+  }), /without declaring structuredEvents support/)
+})
