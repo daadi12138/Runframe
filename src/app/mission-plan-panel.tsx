@@ -20,7 +20,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDescription, setTaskDescription] = useState('')
   const [taskCriteriaText, setTaskCriteriaText] = useState('')
-  const [dependency, setDependency] = useState('')
+  const [dependencies, setDependencies] = useState<string[]>([])
   const [draftNodes, setDraftNodes] = useState<TaskRecord[]>([])
   const [busy, setBusy] = useState(false)
   const [executorId, setExecutorId] = useState<'codex' | 'claude'>('codex')
@@ -143,9 +143,9 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
         ? { acceptanceCriteria: taskCriteriaText.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) }
         : {}),
       status: 'pending',
-      dependsOn: dependency ? [dependency] : [],
+      dependsOn: dependencies,
     }])
-    setTaskTitle(''); setTaskDescription(''); setTaskCriteriaText(''); setDependency('')
+    setTaskTitle(''); setTaskDescription(''); setTaskCriteriaText(''); setDependencies([])
   }
 
   const savePlan = async () => {
@@ -232,8 +232,13 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr minmax(120px, 0.6fr) auto', gap: 8 }}>
             <input style={inputStyle} placeholder="新增任务节点" value={taskTitle} onChange={event => setTaskTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addTask() }} />
-            <select style={inputStyle} value={dependency} onChange={event => setDependency(event.target.value)}>
-              <option value="">无依赖</option>
+            <select
+              multiple
+              style={{ ...inputStyle, minHeight: 38, maxHeight: 84 }}
+              value={dependencies}
+              onChange={event => setDependencies(Array.from(event.target.selectedOptions, option => option.value))}
+              aria-label="选择多个前置依赖（按住 Ctrl 或 Command 多选）"
+            >
               {draftNodes.map(node => <option key={node.id} value={node.id}>依赖：{node.title}</option>)}
             </select>
             <button style={buttonStyle} onClick={addTask} disabled={!taskTitle.trim()}>添加</button>
