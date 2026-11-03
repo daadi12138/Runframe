@@ -18,6 +18,7 @@ export function validateProcessTree(nodes: readonly ProcessTreeNode[]): ProcessT
     if (byId.has(node.id)) errors.push(`Duplicate process tree node id: ${node.id}`)
     else byId.set(node.id, node)
     if (!node.runId.trim()) errors.push(`Process tree node "${node.id}" has no run ID.`)
+    if (node.sessionId !== undefined && (typeof node.sessionId !== 'string' || !node.sessionId.trim() || node.sessionId.length > 256)) errors.push(`Process tree node "${node.id}" has an invalid session ID.`)
     if (!Number.isFinite(Date.parse(node.startedAt))) errors.push(`Process tree node "${node.id}" has an invalid start time.`)
     if (node.endedAt && !Number.isFinite(Date.parse(node.endedAt))) errors.push(`Process tree node "${node.id}" has an invalid end time.`)
     if (node.exitSignal !== undefined && (typeof node.exitSignal !== 'string' || !node.exitSignal.trim())) errors.push(`Process tree node "${node.id}" has an invalid exit signal.`)
