@@ -69,6 +69,13 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
     const queue = createOutputQueue()
     this.sessions.set(request.attemptId, queue)
     void this.execute(request, event => queue.push(event))
+      .then(result => queue.push({
+        sessionId: request.attemptId,
+        stream: 'system',
+        text: 'Agent execution completed.',
+        occurredAt: new Date().toISOString(),
+        event: { type: 'result', payload: result },
+      }))
       .catch(error => queue.push({
         sessionId: request.attemptId,
         stream: 'system',
