@@ -15,6 +15,11 @@ test('validates only assigned Agent executors and requires a registered runtime'
   await assert.rejects(policy.validate([{ kind: 'Agent', executorId: 'missing' }]), /runtime adapter not implemented/)
 })
 
+test('rejects executors without a registered one-shot runner even if a runtime is present', async () => {
+  const policy = new AgentExecutionPolicy(async () => executor(), () => false, () => true)
+  await assert.rejects(policy.validate([{ kind: 'Agent' }]), /runtime adapter not implemented/)
+})
+
 test('rejects unavailable and unauthenticated executors before dispatch', async () => {
   const unavailable = new AgentExecutionPolicy(async () => executor({ status: 'unconfigured' }), () => true, () => true)
   await assert.rejects(unavailable.validate([{ kind: 'Agent' }]), /unavailable/)
