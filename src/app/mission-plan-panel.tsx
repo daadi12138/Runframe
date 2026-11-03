@@ -6,6 +6,17 @@ type MissionStatus = 'draft' | 'planned' | 'running' | 'review' | 'delivered' | 
 type MissionRecord = { id: string; title: string; description: string; status: MissionStatus; createdAt: string; updatedAt: string; activeRunId?: string; acceptanceCriteria?: Array<{ id: string; description: string; required: boolean }> }
 type TaskRecord = { id: string; title: string; description?: string; acceptanceCriteria?: string[]; status: 'pending' | 'ready' | 'running' | 'succeeded' | 'failed' | 'blocked' | 'cancelled'; dependsOn: string[] }
 type PlanRecord = { id: string; missionId: string; revision: number; nodes: TaskRecord[]; createdAt: string }
+type MissionReviewEvidence = {
+  plan: PlanRecord
+  run: { id: string; status: string; mission: { planRevision: number } }
+  evidence: {
+    processTree: Array<{ id: string; kind: string; processId?: number; exitCode?: number }>
+    artifacts: Array<{ id: string; type: string; contentHash: string; attemptId?: string }>
+    deliveryDiff: Array<{ path: string; operation: string; classification: string; conflicts: Array<{ path: string; reason: string }> }>
+    deliveryReceipt: { status: 'approved' | 'no_changes' } | null
+    workspaceApprovalDecisions: Array<{ id: string; decision: 'granted' | 'denied'; scope: { action: string }; decidedAt: string }>
+  }
+}
 
 const inputStyle = { padding: '9px 11px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--ink)', fontSize: 12, minWidth: 0 } as const
 const buttonStyle = { padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' } as const
@@ -28,6 +39,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
   const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [linkedRunStatus, setLinkedRunStatus] = useState<string | null>(null)
   const [deliveryApproved, setDeliveryApproved] = useState(false)
+  const [reviewEvidence, setReviewEvidence] = useState<MissionReviewEvidence | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshMissions = useCallback(async () => {
@@ -81,6 +93,22 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
     const timer = window.setInterval(loadStatus, 2500)
     return () => { cancelled = true; window.clearInterval(timer) }
   }, [selectedMission?.activeRunId])
+
+  useEffect(() => {
+    if (!selectedMission?.activeRunId || selectedMission.status !== 'review') { setReviewEvidence(null); return }
+    let cancelled = false
+    const loadReview = async () => {
+      try {
+        const response = await fetch(`/api/missions/${encodeURIComponent(selectedMission.id)}/review`)
+        if (!response.ok) return
+        const data = await response.json() as MissionReviewEvidence
+        if (!cancelled) setReviewEvidence(data)
+      } catch { /* Review evidence remains retryable while the Run is active. */ }
+    }
+    void loadReview()
+    const timer = window.setInterval(loadReview, 3000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [selectedMission?.id, selectedMission?.activeRunId, selectedMission?.status])
 
   const cancelMission = async () => {
     if (!selectedId || !window.confirm('取消此 Mission？如关联 Run 仍在执行或等待审批，也会一并取消。')) return
@@ -304,6 +332,46 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
           {activeRunId && <div style={{ fontSize: 11, color: 'var(--muted)' }}>最近启动的 Run：<code>{activeRunId}</code></div>}
         </div>
       </div>
+      {selectedMission?.status === 'review' && reviewEvidence && (
+        <section style={{ marginTop: 16, padding: 16, border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <strong style={{ fontSize: 13 }}>Mission Review Evidence</strong>
+              <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>Run {reviewEvidence.run.id} · Plan Revision {reviewEvidence.plan.revision} · {reviewEvidence.run.status}</div>
+            </div>
+            <span className="status-pill pending">{reviewEvidence.evidence.deliveryReceipt?.status ?? '待交付审批'}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, marginTop: 12 }}>
+            {[
+              ['Session / Process', reviewEvidence.evidence.processTree.length],
+              ['Artifacts', reviewEvidence.evidence.artifacts.length],
+              ['Diff entries', reviewEvidence.evidence.deliveryDiff.length],
+              ['Workspace decisions', reviewEvidence.evidence.workspaceApprovalDecisions.length],
+            ].map(([label, value]) => (
+              <div key={label} style={{ padding: 10, borderRadius: 7, background: 'var(--card)' }}>
+                <div style={{ color: 'var(--muted)', fontSize: 10 }}>{label}</div>
+                <strong style={{ fontSize: 18 }}>{value}</strong>
+              </div>
+            ))}
+          </div>
+          {reviewEvidence.evidence.artifacts.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>Artifact provenance</div>
+              {reviewEvidence.evidence.artifacts.map(artifact => (
+                <div key={artifact.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderTop: '1px solid var(--line)', fontSize: 10 }}>
+                  <span>{artifact.type} · {artifact.id}{artifact.attemptId ? ` · Attempt ${artifact.attemptId}` : ''}</span>
+                  <code>{artifact.contentHash.slice(0, 12)}</code>
+                </div>
+              ))}
+            </div>
+          )}
+          {reviewEvidence.evidence.deliveryDiff.some(change => change.conflicts.length > 0) && (
+            <div role="alert" style={{ marginTop: 10, color: 'var(--rose)', fontSize: 11 }}>
+              检测到 {reviewEvidence.evidence.deliveryDiff.reduce((count, change) => count + change.conflicts.length, 0)} 个交付冲突；完成冲突处理前不要确认交付。
+            </div>
+          )}
+        </section>
+      )}
       {error && <div role="alert" style={{ marginTop: 12, color: 'var(--rose)', fontSize: 12 }}>{error}</div>}
       {!selectedId && <div style={{ marginTop: 14, color: 'var(--muted)', fontSize: 12 }}>先创建或选择一个 Mission，再为它建立 Plan Graph。</div>}
     </section>
