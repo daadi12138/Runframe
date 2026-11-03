@@ -10,7 +10,7 @@ type PlanRecord = { id: string; missionId: string; revision: number; nodes: Task
 const inputStyle = { padding: '9px 11px', background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 7, color: 'var(--ink)', fontSize: 12, minWidth: 0 } as const
 const buttonStyle = { padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 7, background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' } as const
 
-export function MissionPlanPanel() {
+export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: string) => void }) {
   const [missions, setMissions] = useState<MissionRecord[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [plan, setPlan] = useState<PlanRecord | null>(null)
@@ -20,6 +20,9 @@ export function MissionPlanPanel() {
   const [dependency, setDependency] = useState('')
   const [draftNodes, setDraftNodes] = useState<TaskRecord[]>([])
   const [busy, setBusy] = useState(false)
+  const [executorId, setExecutorId] = useState<'codex' | 'claude'>('codex')
+  const [executionMode, setExecutionMode] = useState<'read_only' | 'workspace_write'>('read_only')
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refreshMissions = useCallback(async () => {
@@ -30,7 +33,11 @@ export function MissionPlanPanel() {
     setSelectedId(current => current && records.some(item => item.id === current) ? current : records[0]?.id ?? '')
   }, [])
 
-  useEffect(() => { void refreshMissions().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))) }, [refreshMissions])
+  useEffect(() => {
+    void refreshMissions().catch(reason => setError(reason instanceof Error ? reason.message : String(reason)))
+    const timer = window.setInterval(() => { void refreshMissions().catch(() => undefined) }, 3000)
+    return () => window.clearInterval(timer)
+  }, [refreshMissions])
 
   useEffect(() => {
     if (!selectedId) { setPlan(null); setDraftNodes([]); return }
@@ -84,6 +91,23 @@ export function MissionPlanPanel() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || '保存 Plan 失败')
       setPlan(result)
+      await refreshMissions()
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+    finally { setBusy(false) }
+  }
+
+  const startExecution = async () => {
+    if (!selectedId || !plan || selectedMission?.status !== 'planned') return
+    setBusy(true); setError(null)
+    try {
+      const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}/run`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ executorId, executionMode }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || '启动 Mission Run 失败')
+      setActiveRunId(result.run.id)
+      onRunStarted?.(result.run.id)
       await refreshMissions()
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { setBusy(false) }
@@ -149,10 +173,23 @@ export function MissionPlanPanel() {
               ))}
             </div>
           ) : <div style={{ padding: 28, textAlign: 'center', color: 'var(--quiet)', fontSize: 12 }}>添加任务节点，使用依赖选择器构建 DAG。</div>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, color: 'var(--muted)' }}>保存会创建新 Revision，不覆盖历史计划。</span>
             <button style={buttonStyle} disabled={busy || !selectedId || !draftNodes.length} onClick={() => void savePlan()}>保存新 Revision</button>
           </div>
+          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <select style={inputStyle} value={executorId} onChange={event => setExecutorId(event.target.value as 'codex' | 'claude')}>
+              <option value="codex">Codex CLI</option>
+              <option value="claude">Claude Code CLI</option>
+            </select>
+            <select style={inputStyle} value={executionMode} onChange={event => setExecutionMode(event.target.value as 'read_only' | 'workspace_write')}>
+              <option value="read_only">只读执行</option>
+              <option value="workspace_write">允许 Worktree 写入</option>
+            </select>
+            <button style={buttonStyle} disabled={busy || !selectedId || !plan || selectedMission?.status !== 'planned'} onClick={() => void startExecution()}>启动此 Plan</button>
+          </div>
+          {activeRunId && <div style={{ fontSize: 11, color: 'var(--muted)' }}>最近启动的 Run：<code>{activeRunId}</code></div>}
         </div>
       </div>
       {error && <div role="alert" style={{ marginTop: 12, color: 'var(--rose)', fontSize: 12 }}>{error}</div>}
