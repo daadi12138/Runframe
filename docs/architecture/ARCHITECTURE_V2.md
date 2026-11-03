@@ -104,14 +104,16 @@ Recovery invariants:
 ### Phase 2 — application services
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
 - [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
+- [x] Add Mission and Plan REST APIs, plus a compatibility dispatch bridge that converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution.
 - [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
 - [ ] Route Mission Plan dispatch through the application layer and the capability-aware runtime registry.
 - [ ] Keep facade exports stable through `src/core/index.ts`.
 - [ ] Add contract tests around legacy Run/Manifest compatibility and migration behavior.
 
 ### Phase 3 — workbench
-- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub.
+- [x] Add a V2 Mission / Plan Graph workspace alongside the existing Mission Hub, including task dependency editing and immutable Plan revision saves.
 - [x] Add a persisted Execution Timeline projection alongside existing Run and Agent trace views.
+- [x] Allow a saved V2 Plan to start a Run with an explicit executor and read-only / Worktree-write mode; reconcile completed or failed Runs into Mission review state.
 - [ ] Add a hierarchical process-tree projection for nested agent sessions and subprocesses.
 - [ ] Complete diff review, artifact provenance, and delivery approval linkage to V2 Mission and Plan revisions.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
