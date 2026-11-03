@@ -20,6 +20,7 @@ export function validateProcessTree(nodes: readonly ProcessTreeNode[]): ProcessT
     if (!node.runId.trim()) errors.push(`Process tree node "${node.id}" has no run ID.`)
     if (!Number.isFinite(Date.parse(node.startedAt))) errors.push(`Process tree node "${node.id}" has an invalid start time.`)
     if (node.endedAt && !Number.isFinite(Date.parse(node.endedAt))) errors.push(`Process tree node "${node.id}" has an invalid end time.`)
+    if (node.exitSignal !== undefined && (typeof node.exitSignal !== 'string' || !node.exitSignal.trim())) errors.push(`Process tree node "${node.id}" has an invalid exit signal.`)
     if (node.endedAt && Date.parse(node.endedAt) < Date.parse(node.startedAt)) {
       errors.push(`Process tree node "${node.id}" ends before it starts.`)
     }
