@@ -1940,6 +1940,7 @@ async function runClaude(input: Parameters<AgentRunner>[0]): Promise<AgentRunner
       env: input.environment,
       maxLineLength: 1_000_000,
       onSpawn: input.onProcessStarted,
+      onExit: input.onProcessExited,
       onStdoutLine: async line => {
         heartbeat.touch()
         let event: ClaudeStreamEvent
