@@ -192,7 +192,7 @@ export async function startRun(input: StartRunInput): Promise<RunSnapshot> {
   if (!project) throw new Error('Import a Git project before starting a run')
   const edges = input.edges ?? []
   validateRunGraph(input.nodes, edges)
-  await validateAgentExecutors(input.nodes)
+  await agentExecutionPolicy.validate(input.nodes)
   const runInput = normalizeRunInput(input.input)
   const snapshot: RunSnapshot = { id: `run-${randomUUID()}`, status: 'preparing', startedAt: new Date().toISOString(), project: structuredClone(project), workflow: input.workflow ? structuredClone(input.workflow) : undefined, mission: input.mission ? structuredClone(input.mission) : undefined, input: runInput, ...(input.intentAware ? { intelligence: { schemaVersion: 1, status: 'running', startedAt: new Date().toISOString(), currentStage: 'context' } as IntentOrchestrationSnapshot } : {}), nodes: input.nodes.map(node => ({ ...node, state: 'idle', attempts: [] })), edges, interactions: [], logs: [], events: [], artifacts: [] }
   appendEvent(snapshot, 'run-created', `运行已创建 · ${input.nodes.length} 个节点 · 环境 v${project.environment.version}`, undefined, undefined, { workflow: input.workflow?.workflowName ?? 'legacy' })
@@ -821,7 +821,7 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
       attemptId: attempt.id,
       attemptDirectory: attemptDirectory(run.id, attempt.id),
       // The selected executor's local CLI supplies its own authenticated environment.
-      environment: agentEnvironment(),
+      environment: agentExecutionPolicy.createEnvironment(),
       onPublicTrace: (event: AgentTraceDraft) => persistAgentTrace(run.id, node.id, attempt.id, event),
       onProcessStarted: (process: NonNullable<StepAttempt['process']>) => persistAttemptProcess(run.id, node.id, attempt.id, process),
       onProcessExited: process => persistAttemptProcessExit(run.id, node.id, attempt.id, process),
@@ -860,13 +860,6 @@ async function cancelAgentAttempt(attempt: StepAttempt): Promise<void> {
   }
 }
 
-async function validateAgentExecutors(nodes: Array<Omit<RunNode, 'state' | 'attempts'>>): Promise<void> {
-  await agentExecutionPolicy.validate(nodes)
-}
-
-function agentEnvironment(): NodeJS.ProcessEnv {
-  return agentExecutionPolicy.createEnvironment()
-}
 
 async function executeValidation(run: RunSnapshot, node: RunNode, attempt: StepAttempt): Promise<{ summary: string; content: string }> {
   if (!run.worktreePath) throw new Error('Worktree is not prepared')
@@ -953,7 +946,7 @@ async function prepareIntelligentRun(run: RunSnapshot): Promise<boolean> {
       executor,
       attemptId: `intent-${run.id}`,
       attemptDirectory: attemptDirectory(run.id, 'intent'),
-      environment: agentEnvironment(),
+      environment: agentExecutionPolicy.createEnvironment(),
     }))
     const parsed = parseIntentModelOutput(result.output, { requirement: run.input.text, workflowId: run.workflow?.workflowId, nodes: run.nodes })
     run.intelligence.modelOutput = normalizePublicText(result.output, 40_000).value
