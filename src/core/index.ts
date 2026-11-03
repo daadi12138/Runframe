@@ -207,6 +207,6 @@ export { MissionExecutionService, type DispatchMissionOptions, type DispatchMiss
 export type { MissionRunDispatcher, MissionRunDispatchRequest } from '../ports/v2/mission-run-dispatcher'
 export { LegacyMissionRunDispatcher } from '../adapters/legacy-run/mission-run-dispatcher'
 
-export { inspectRunSchedule, type ScheduledNode, type SchedulerEdge, type ScheduleInspection } from '../application/v2/task-scheduler'
+export { inspectRunSchedule, validateSchedulerGraph, type ScheduledNode, type SchedulerEdge, type ScheduleInspection } from '../application/v2/task-scheduler'
 
 export { reconcileMissionRun, type LinkedRunStatus, type MissionRunLink } from '../application/v2/mission-reconciliation'
