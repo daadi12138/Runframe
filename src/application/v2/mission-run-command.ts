@@ -37,7 +37,7 @@ export function buildMissionRunCommand(request: MissionRunDispatchRequest): Miss
       task.title,
       task.description ?? '',
       ...(task.acceptanceCriteria ?? []).map(criterion => `Acceptance criterion: ${criterion}`),
-    ].filter(Boolean).join('\\n\\n'),
+    ].filter(Boolean).join('\n\n'),
     outputType: 'implementation-report' as const,
     executionMode: request.executionMode,
   }))
@@ -46,7 +46,7 @@ export function buildMissionRunCommand(request: MissionRunDispatchRequest): Miss
     nodes,
     edges,
     input: {
-      text: [request.missionTitle, request.missionDescription, ...request.acceptanceCriteria.map(item => `- ${item.description}`)].filter(Boolean).join('\\n\\n'),
+      text: [request.missionTitle, request.missionDescription, ...request.acceptanceCriteria.map(item => `- ${item.description}`)].filter(Boolean).join('\n\n'),
       attachments: [],
     },
     mission: {
