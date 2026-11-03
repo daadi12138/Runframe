@@ -2,7 +2,7 @@ import type { AgentCapabilities } from '../../domain/v2/model'
 import type { AgentLaunchRequest, AgentOutputEvent, AgentRuntime, AgentSessionHandle } from '../../ports/v2/agent-runtime'
 
 type OutputQueue = {
-  push(event: AgentOutputEvent): void
+  push(event: AgentOutputEvent): Promise<void>
   close(): void
   iterate(signal?: AbortSignal): AsyncIterable<AgentOutputEvent>
 }
@@ -10,23 +10,29 @@ type OutputQueue = {
 function createOutputQueue(): OutputQueue {
   const values: AgentOutputEvent[] = []
   const waiters: Array<(value: IteratorResult<AgentOutputEvent>) => void> = []
+  const producers: Array<() => void> = []
+  const capacity = 128
   let closed = false
   return {
-    push(event) {
+    async push(event) {
       if (closed) return
       const waiter = waiters.shift()
-      if (waiter) waiter({ value: event, done: false })
-      else values.push(event)
+      if (waiter) { waiter({ value: event, done: false }); return }
+      while (!closed && values.length >= capacity) await new Promise<void>(resolve => producers.push(resolve))
+      if (closed) return
+      values.push(event)
     },
     close() {
       closed = true
       while (waiters.length) waiters.shift()?.({ value: undefined, done: true })
+      while (producers.length) producers.shift()?.()
     },
     async *iterate(signal) {
       while (true) {
         if (signal?.aborted) return
         if (values.length) {
           yield values.shift()!
+          producers.shift()?.()
           continue
         }
         if (closed) return
@@ -58,7 +64,7 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
     readonly id: string,
     private readonly execute: (
       request: AgentLaunchRequest,
-      emit: (event: AgentOutputEvent) => void,
+      emit: (event: AgentOutputEvent) => Promise<void>,
     ) => Promise<unknown>,
     private readonly cancelExecution: (sessionId: string) => Promise<void>,
   ) {}
@@ -68,7 +74,7 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
     if (this.sessions.has(request.attemptId)) throw new Error(`Runtime session already exists: ${request.attemptId}`)
     const queue = createOutputQueue()
     this.sessions.set(request.attemptId, queue)
-    queue.push({
+    await queue.push({
       sessionId: request.attemptId,
       stream: 'system',
       text: 'Agent session started.',
@@ -90,8 +96,8 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
         occurredAt: new Date().toISOString(),
         event: { type: 'error', payload: { message: error instanceof Error ? error.message : String(error) } },
       }))
-      .finally(() => {
-        queue.push({
+      .finally(async () => {
+        await queue.push({
           sessionId: request.attemptId,
           stream: 'system',
           text: 'Agent session ended.',
