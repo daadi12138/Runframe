@@ -6,6 +6,8 @@ export interface AgentLaunchRequest {
   prompt: string
   model?: string
   environment?: Record<string, string>
+  /** Adapter-private execution context; never supplied by an untrusted renderer. */
+  metadata?: unknown
 }
 
 export interface AgentSessionHandle {
