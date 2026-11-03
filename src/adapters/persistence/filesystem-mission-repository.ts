@@ -24,7 +24,6 @@ async function atomicWrite(path: string, content: string): Promise<void> {
   const temporaryPath = `${path}.${randomUUID()}.tmp`
   try {
     await writeFile(temporaryPath, content, { encoding: 'utf8', flag: 'wx' })
-    const { open } = await import('node:fs/promises')
     const handle = await open(temporaryPath, 'r')
     try { await handle.sync() } finally { await handle.close() }
     await rename(temporaryPath, path)
