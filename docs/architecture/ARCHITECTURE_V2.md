@@ -2,7 +2,8 @@
 
 **Status:** Incremental architecture RFC — Phase 1 implementation in progress  
 **Target branch:** `architecture-v2`  
-**Compatibility rule:** V2 is additive. Existing Run manifests, Workflow definitions, CLI integrations, and local state remain authoritative until an explicit migration is implemented.
+**Compatibility rule:** V2 is additive. Existing Run manifests, Workflow definitions, CLI integrations, and local state remain authoritative until an explicit migration is implemented.  
+**Engineering handoff:** See [V2_HANDOFF.md](./V2_HANDOFF.md) for the implemented scope, unfinished work, validation status, and recommended continuation order.
 
 ## 1. Product and architectural decision
 
