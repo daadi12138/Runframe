@@ -28,9 +28,15 @@ export function validateDiffReview(input: DiffReviewInput): ValidatedDiffReview 
   const paths = input.paths.slice(0, maxPaths).map(validateRelativePath)
   const bytes = Buffer.byteLength(input.patch, 'utf8')
   if (bytes <= maxPatchBytes) return { patch: input.patch, paths, truncated: input.paths.length > maxPaths }
+  const marker = '\\n\\n[Diff preview truncated]'
+  const markerBytes = Buffer.byteLength(marker, 'utf8')
+  const budget = Math.max(0, maxPatchBytes - markerBytes)
   let patch = input.patch
-  while (Buffer.byteLength(patch, 'utf8') > maxPatchBytes) patch = patch.slice(0, Math.floor(patch.length * 0.9))
-  return { patch: patch + '\\n\\n[Diff preview truncated by size limit]', paths, truncated: true }
+  while (patch.length > 0 && Buffer.byteLength(patch, 'utf8') > budget) {
+    patch = patch.slice(0, Math.max(0, patch.length - Math.max(1, Math.ceil((Buffer.byteLength(patch, 'utf8') - budget) / 2))))
+  }
+  const preview = (patch + marker).slice(0, maxPatchBytes)
+  return { patch: preview, paths, truncated: true }
 }
 
 export function validateRelativePath(value: string): string {
