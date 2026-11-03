@@ -6,6 +6,7 @@ import { schemaFor, validatePayload } from './artifact-schema'
 import { AgentTool, ShellTool } from './tool-executor'
 import { resolveExecutorForRun, type ExecutorConfig } from './executor-config'
 import { notifyRunChanged } from './run-events'
+import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApproved, loadProject, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -1272,6 +1273,46 @@ async function saveRun(run: RunSnapshot): Promise<void> {
     } catch { /* The first save creates the manifest. */ }
     // Never allow an older in-memory snapshot to roll back a newer persisted one.
     if (currentRevision !== expectedRevision) return
+    // The journal is the durable evidence stream; the manifest remains the
+    // compatibility projection consumed by existing APIs and UI.
+    const eventStore = createDefaultExecutionEventStore()
+    const journal = await eventStore.read(run.id)
+    const projectedIds = new Set(journal.map(event => {
+      const payload = event.payload as { legacyEventId?: unknown } | null
+      return typeof payload?.legacyEventId === 'string' ? payload.legacyEventId : undefined
+    }).filter((id): id is string => Boolean(id)))
+    let sequence = await eventStore.lastSequence(run.id)
+    for (const legacyEvent of run.events ?? []) {
+      if (projectedIds.has(legacyEvent.id)) continue
+      sequence += 1
+      const kind = ({
+        'run-created': 'run.created',
+        'run-state': 'run.state',
+        'node-state': 'node.state',
+        command: 'command.executed',
+        executor: 'executor.activity',
+        artifact: 'artifact.updated',
+        operator: 'operator.interaction',
+        activity: 'activity',
+        error: 'error',
+      } as const)[legacyEvent.type]
+      await eventStore.append({
+        id: `legacy-${legacyEvent.id}`,
+        runId: run.id,
+        sequence,
+        kind,
+        occurredAt: legacyEvent.occurredAt,
+        ...(legacyEvent.attemptId ? { attemptId: legacyEvent.attemptId } : {}),
+        payload: {
+          source: 'legacy-run-manifest',
+          legacyEventId: legacyEvent.id,
+          legacyType: legacyEvent.type,
+          message: legacyEvent.message,
+          ...(legacyEvent.nodeId ? { nodeId: legacyEvent.nodeId } : {}),
+          ...(legacyEvent.details ? { details: legacyEvent.details } : {}),
+        },
+      }, { idempotencyKey: `legacy:${legacyEvent.id}` })
+    }
     const revision = currentRevision + 1
     await atomicWrite(manifestPath(run.id), JSON.stringify({ ...run, revision }, null, 2))
     run.revision = revision
