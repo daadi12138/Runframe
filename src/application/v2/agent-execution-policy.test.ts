@@ -38,3 +38,8 @@ test('builds a minimal executor environment and retains locale overrides only', 
   assert.equal(environment.SECRET_TOKEN, undefined)
   assert.equal(environment.OPENAI_API_KEY, undefined)
 })
+
+test('rejects an executor when its legacy CLI runner is not registered', async () => {
+  const policy = new AgentExecutionPolicy(async () => executor(), () => false, () => true)
+  await assert.rejects(policy.validate([{ kind: 'Agent' }]), /runtime adapter not implemented/)
+})
