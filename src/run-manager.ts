@@ -1475,6 +1475,7 @@ async function saveRun(run: RunSnapshot): Promise<void> {
     }
 
     for (const node of run.nodes) {
+      if (node.kind !== 'Agent') continue
       for (const attempt of node.attempts) {
         const sessionNodeId = `session:${attempt.id}`
         await appendRuntimeFact(attempt, 'session.started', `session:${attempt.id}:started`, attempt.startedAt, {
