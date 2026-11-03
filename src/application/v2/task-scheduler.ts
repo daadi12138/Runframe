@@ -30,7 +30,7 @@ export function inspectRunSchedule<TNode extends ScheduledNode>(
   if (nextReadyNode) return { nextReadyNode, complete: false, blocked: false, waiting: false }
 
   const complete = nodes.every(node => node.state === 'success' || node.state === 'skipped')
-  const waiting = nodes.some(node => node.state === 'waiting' || node.state === 'running' || node.state === 'paused')
+  const waiting = nodes.some(node => node.state === 'waiting' || node.state === 'running')
   return {
     nextReadyNode: null,
     complete,
