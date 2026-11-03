@@ -873,7 +873,7 @@ async function executeNode(run: RunSnapshot, node: RunNode, attempt: StepAttempt
       }).then(() => undefined),
     }
     const execution = await agentTool.execute({
-      runner: () => agentAttemptService.execute<AgentTraceDraft, AgentRunnerResult>(executor.id, { attemptId: attempt.id, workspaceRoot: run.worktreePath!, prompt: renderedPrompt, model: executor.model, metadata: executionInput }, trace => executionInput.onPublicTrace(trace)),
+      runner: () => agentAttemptService.execute<AgentTraceDraft, AgentRunnerResult>(executor.id, { attemptId: attempt.id, workspaceRoot: run.worktreePath!, prompt: renderedPrompt, model: executor.model, metadata: executionInput }, trace => executionInput.onPublicTrace(trace), output => executionInput.onPublicTrace({ kind: output.stream === 'stderr' ? 'error' : 'agent_message', content: output.text })),
       input: executionInput,
     }, { cwd: run.worktreePath, workspaceRoot: run.worktreePath, mode: writable ? 'workspace_write' : 'read_only', attemptId: attempt.id })
     if (execution.permission === 'deny') throw new Error(`Agent 被权限策略拒绝：${execution.reason}`)
