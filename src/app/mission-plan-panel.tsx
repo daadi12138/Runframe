@@ -10,7 +10,7 @@ type MissionReviewEvidence = {
   plan: PlanRecord
   run: { id: string; status: string; mission: { planRevision: number } }
   evidence: {
-    processTree: Array<{ id: string; parentId?: string; kind: string; processId?: number; sessionId?: string; startedAt: string; endedAt?: string; exitCode?: number }>
+    processTree: Array<{ id: string; parentId?: string; kind: string; processId?: number; sessionId?: string; startedAt: string; endedAt?: string; exitCode?: number; exitSignal?: string }>
     artifacts: Array<{ id: string; type: string; contentHash: string; attemptId?: string }>
     deliveryDiff: Array<{ path: string; operation: string; classification: string; conflicts: Array<{ path: string; reason: string }> }>
     deliveryReceipt: { status: 'approved' | 'no_changes' } | null
@@ -380,7 +380,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
                     <div style={{ color: 'var(--muted)' }}>{new Date(node.startedAt).toLocaleTimeString()}{node.endedAt ? ` → ${new Date(node.endedAt).toLocaleTimeString()}` : ' · active at last observation'}</div>
                   </div>
                   <span style={{ flexShrink: 0, color: node.endedAt && node.exitCode !== undefined && node.exitCode !== 0 ? 'var(--rose)' : 'var(--muted)' }}>
-                    {node.processId ? `PID ${node.processId}` : ''}{node.exitCode === undefined ? '' : ` · exit ${node.exitCode}`}
+                    {node.processId ? `PID ${node.processId}` : ''}{node.exitCode === undefined ? node.exitSignal ? ` · ${node.exitSignal}` : '' : ` · exit ${node.exitCode}`}
                   </span>
                 </div>
               ))}
