@@ -132,7 +132,7 @@ Recovery invariants:
 - [x] Emit Runframe-managed session start/output/end and OS CLI process start/exit facts (PID, exit code/signal) from the actual Codex/Claude Attempt lifecycle; expose the validated process-tree projection in the Mission UI. Mission Review renders the observed session/process hierarchy, PID, timestamps, exit code, and exit signal.
   - Session output journal projection is bounded to 1,000 events per Attempt and 4,000 characters per event; a terminal omission marker preserves the omitted count while the full redacted per-Attempt trace remains in `trace.jsonl`.
 - [ ] Add native child-agent session hooks and capture nested tool subprocesses where the CLI exposes reliable identities.
-- [x] Add a Mission Review evidence API that verifies the Run's Mission + exact immutable Plan Revision provenance and assembles execution events, process tree, Attempt links, Artifact hashes, delivery diff/receipt, and workspace-scoped approval decisions; surface the evidence summary in Mission planning UI.
+- [x] Add a Mission Review evidence API that verifies the Run's Mission + exact immutable Plan Revision provenance and assembles execution events, process tree, Attempt links, Artifact hashes, delivery diff/receipt, and workspace-scoped approval decisions; surface the evidence summary in Mission planning UI. Mission Review now renders each Task Attempt's executor, state, timestamps, process identity/exit facts, input Artifact references, and bounded-manifest trace omission count.
 - [ ] Complete interactive diff/conflict review and end-to-end validation of every evidence link before delivery.
 - Keep Plan Graph and Execution Trace as separate views over shared Mission context.
 
