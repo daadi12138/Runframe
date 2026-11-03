@@ -35,7 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params
   try {
-    const body = z.object({ status: z.enum(['planned', 'review', 'delivered', 'cancelled']) }).parse(await request.json())
+    const body = z.object({ status: z.enum(['planned', 'delivered', 'cancelled']) }).parse(await request.json())
     const repository = createDefaultMissionRepository()
     const mission = await repository.getMission(id)
     if (!mission) return Response.json({ error: 'Mission not found' }, { status: 404 })
