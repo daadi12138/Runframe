@@ -1507,7 +1507,7 @@ async function saveRun(run: RunSnapshot): Promise<void> {
         let completeTrace: AgentTraceEvent[] = attempt.trace ?? []
         try {
           const traceContent = await readFile(join(attemptDirectory(run.id, attempt.id), 'trace.jsonl'), 'utf8')
-          completeTrace = traceContent.split(/\\r?\\n/).filter(Boolean).flatMap(line => {
+          completeTrace = traceContent.split(/\r?\n/).filter(Boolean).flatMap(line => {
             try {
               const value = JSON.parse(line) as AgentTraceEvent
               return Number.isSafeInteger(value.seq) && typeof value.occurredAt === 'string' ? [value] : []
