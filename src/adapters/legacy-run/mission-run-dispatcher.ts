@@ -33,7 +33,11 @@ export class LegacyMissionRunDispatcher implements MissionRunDispatcher {
     return { runId: run.id }
   }
 
-  async getStatus(runId: string): Promise<string | null> {\n    return (await getRun(runId))?.status ?? null\n  }\n\n  async cancel(runId: string): Promise<void> {
+  async getStatus(runId: string): Promise<string | null> {
+    return (await getRun(runId))?.status ?? null
+  }
+
+  async cancel(runId: string): Promise<void> {
     await cancelRun(runId)
   }
 }
