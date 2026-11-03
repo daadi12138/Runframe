@@ -1,4 +1,4 @@
-import { createDefaultExecutionEventStore } from '@artifact/core'
+import { createDefaultExecutionEventStore, getRun } from '@artifact/core'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,6 +15,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: 'limit must be between 1 and 1000' }, { status: 400 })
   }
   try {
+    if (!(await getRun(id))) return Response.json({ error: 'Run not found' }, { status: 404 })
     const store = createDefaultExecutionEventStore()
     const [events, lastSequence] = await Promise.all([
       store.read(id, { afterSequence, limit }),
