@@ -70,6 +70,7 @@ export class MissionService {
     if (mission.status !== 'draft' && mission.status !== 'planned' && mission.status !== 'review') {
       throw new Error(`Cannot revise a plan while mission is ${mission.status}.`)
     }
+    if (!nodes.length) throw new Error('A Mission Plan needs at least one task node.')
     const graph = validatePlanGraph(nodes)
     if (!graph.valid) throw new Error(`Invalid plan graph: ${graph.errors.join('; ')}`)
     const latest = await this.repository.getLatestPlan(missionId)
