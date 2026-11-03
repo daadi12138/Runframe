@@ -42,6 +42,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         text: [mission.title, mission.description, ...mission.acceptanceCriteria.map(item => `- ${item.description}`)].filter(Boolean).join('\n\n'),
         attachments: [],
       },
+      mission: {
+        missionId: mission.id,
+        missionTitle: mission.title,
+        planRevisionId: plan.id,
+        planRevision: plan.revision,
+      },
     })
     const updatedMission = {
       ...mission,
