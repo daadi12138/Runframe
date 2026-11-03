@@ -45,4 +45,12 @@ export function assertRuntimeCapability(
   if (!runtime.capabilities[capability]) {
     throw new Error(`Agent runtime "${runtime.id}" does not support capability "${capability}".`)
   }
+  const operation = capability === 'cancellation' ? runtime.cancel
+    : capability === 'pause' ? runtime.pause
+    : capability === 'resume' ? runtime.resume
+    : capability === 'attach' ? runtime.attach
+    : undefined
+  if (['cancellation', 'pause', 'resume', 'attach'].includes(capability) && typeof operation !== 'function') {
+    throw new Error(`Agent runtime "${runtime.id}" declares "${capability}" but does not implement its operation.`)
+  }
 }
