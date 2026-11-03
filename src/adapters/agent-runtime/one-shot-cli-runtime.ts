@@ -68,6 +68,13 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
     if (this.sessions.has(request.attemptId)) throw new Error(`Runtime session already exists: ${request.attemptId}`)
     const queue = createOutputQueue()
     this.sessions.set(request.attemptId, queue)
+    queue.push({
+      sessionId: request.attemptId,
+      stream: 'system',
+      text: 'Agent session started.',
+      occurredAt: new Date().toISOString(),
+      event: { type: 'session.started', payload: { sessionId: request.attemptId, attemptId: request.attemptId } },
+    })
     void this.execute(request, event => queue.push(event))
       .then(result => queue.push({
         sessionId: request.attemptId,
@@ -83,7 +90,16 @@ export class OneShotCliAgentRuntime implements AgentRuntime {
         occurredAt: new Date().toISOString(),
         event: { type: 'error', payload: { message: error instanceof Error ? error.message : String(error) } },
       }))
-      .finally(() => queue.close())
+      .finally(() => {
+        queue.push({
+          sessionId: request.attemptId,
+          stream: 'system',
+          text: 'Agent session ended.',
+          occurredAt: new Date().toISOString(),
+          event: { type: 'session.ended', payload: { sessionId: request.attemptId, attemptId: request.attemptId } },
+        })
+        queue.close()
+      })
     return { sessionId: request.attemptId }
   }
 
