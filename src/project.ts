@@ -169,10 +169,11 @@ export async function isProjectCommandApprovedWithAudit(
   project: ProjectConfig,
   key: ProjectCommandKey,
   command: CommandSpec,
+  workspaceRoot = project.repositoryPath,
 ): Promise<boolean> {
   if (!isProjectCommandApproved(project, key, command)) return false
   const approvals = new ApprovalService(createDefaultApprovalRepository())
-  const scope = projectCommandApprovalScope(project, key, command)
+  const scope = projectCommandApprovalScope(project, key, command, workspaceRoot)
   const latest = await approvals.latestDecision(scope)
   // Migrate pre-V2 allowlist approvals without broadening their original scope.
   if (!latest) {
