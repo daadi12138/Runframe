@@ -168,6 +168,10 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
 
   const startExecution = async () => {
     if (!selectedId || !plan || !(selectedMission?.status === 'planned' || selectedMission?.status === 'review')) return
+    if (selectedMission.activeRunId && (!linkedRunStatus || !['succeeded', 'failed', 'cancelled'].includes(linkedRunStatus))) {
+      setError('上一次 Run 仍在执行或等待审批，请先完成或取消它。')
+      return
+    }
     setBusy(true); setError(null)
     try {
       const response = await fetch(`/api/missions/${encodeURIComponent(selectedId)}/run`, {
@@ -277,7 +281,7 @@ export function MissionPlanPanel({ onRunStarted, onDeliveryRequested }: { onRunS
               <option value="read_only">只读执行</option>
               <option value="workspace_write">允许 Worktree 写入</option>
             </select>
-            <button style={buttonStyle} disabled={busy || !selectedId || !plan || !(selectedMission?.status === 'planned' || selectedMission?.status === 'review')} onClick={() => void startExecution()}>{selectedMission?.status === 'review' ? '重新执行 Plan' : '启动此 Plan'}</button>
+            <button style={buttonStyle} disabled={busy || !selectedId || !plan || !(selectedMission?.status === 'planned' || selectedMission?.status === 'review') || Boolean(selectedMission?.activeRunId && (!linkedRunStatus || !['succeeded', 'failed', 'cancelled'].includes(linkedRunStatus)))} onClick={() => void startExecution()}>{selectedMission?.status === 'review' ? '重新执行 Plan' : '启动此 Plan'}</button>
           </div>
           {activeRunId && <div style={{ fontSize: 11, color: 'var(--muted)' }}>最近启动的 Run：<code>{activeRunId}</code></div>}
         </div>
