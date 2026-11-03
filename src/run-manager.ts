@@ -9,6 +9,7 @@ import { notifyRunChanged } from './run-events'
 import { createDefaultExecutionEventStore } from './adapters/persistence/filesystem-event-store'
 import type { ExecutionEvent } from './domain/v2/model'
 import { inspectRunSchedule } from './application/v2/task-scheduler'
+import { AgentRunnerRegistry } from './adapters/agent-runtime/runner-registry'
 import { approveProjectCommand, detectProjectEnvironment, isProjectCommandApprovedWithAudit, loadProject, recordProjectCommandDecision, type CommandSpec, type ProjectCommandKey, type ProjectConfig } from './project'
 import { agentInstructionContext, buildRepositoryMap, executionStepContext, intentPrompt, loadAgentInstructions, orchestrationReviewReason, parseIntentModelOutput, runStateGraph, textualAttachmentContext, type IntentOrchestrationSnapshot } from './intelligent-orchestration'
 
@@ -71,7 +72,6 @@ type AgentInteractionDraft = Omit<CreateInteractionInput, 'source' | 'nodeId' | 
 type AgentRunnerResult = { output: string; activities?: AgentActivity[] }
 type AgentTraceDraft = Omit<AgentTraceEvent, 'schemaVersion' | 'seq' | 'occurredAt' | 'executorId' | 'nodeId' | 'attemptId'>
 type AgentRunner = (input: { prompt: string; cwd: string; writable: boolean; executor: ExecutorConfig; runId?: string; nodeId?: string; attemptId: string; attemptDirectory: string; environment: NodeJS.ProcessEnv; onPublicTrace?: (event: AgentTraceDraft) => Promise<void>; onProcessStarted?: (process: NonNullable<StepAttempt['process']>) => Promise<void>; onInteraction?: (interaction: AgentInteractionDraft) => Promise<void> }) => Promise<string | AgentRunnerResult>
-type AgentAdapter = { id: string; run: AgentRunner }
 type RunProcessOptions = { stdin?: string; env?: NodeJS.ProcessEnv; maxLineLength?: number; onStdoutLine?: (line: string) => void | Promise<void>; onSpawn?: (process: NonNullable<StepAttempt['process']>) => void | Promise<void> }
 
 const stateRoot = () => process.env.ARTIFACT_STATE_DIR || join(process.cwd(), '.artifact-state')
@@ -91,19 +91,29 @@ const activeProcesses = new Map<string, ChildProcess>()
 const pendingRunWrites = new Map<string, Promise<void>>()
 const queuedRuns = new Set<string>()
 let recoveryStarted = false
-const builtInAgentAdapters = (): AgentAdapter[] => [
-  { id: 'codex', run: runCodex },
-  { id: 'claude', run: runClaude },
+const cliRunnerCapabilities = {
+  streamingOutput: true,
+  structuredEvents: true,
+  cancellation: true,
+  pause: false,
+  resume: false,
+  attach: false,
+  usageReporting: false,
+} as const
+
+const builtInAgentAdapters = () => [
+  { id: 'codex', capabilities: cliRunnerCapabilities, run: runCodex },
+  { id: 'claude', capabilities: cliRunnerCapabilities, run: runClaude },
 ]
-let agentAdapters = new Map(builtInAgentAdapters().map(adapter => [adapter.id, adapter]))
+let agentAdapters = new AgentRunnerRegistry<AgentRunner>(builtInAgentAdapters())
 const shellTool = new ShellTool()
 const agentTool = new AgentTool()
 
 export function configureRunManagerForTests(dependencies: { codexRunner?: AgentRunner; claudeRunner?: AgentRunner } = {}): void {
-  agentAdapters = new Map(builtInAgentAdapters().map(adapter => [adapter.id, {
+  agentAdapters = new AgentRunnerRegistry<AgentRunner>(builtInAgentAdapters().map(adapter => ({
     ...adapter,
     run: adapter.id === 'codex' ? dependencies.codexRunner ?? adapter.run : dependencies.claudeRunner ?? adapter.run,
-  }]))
+  })))
 }
 
 function maxConcurrentRuns(): number {
