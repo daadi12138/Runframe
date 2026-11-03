@@ -59,11 +59,18 @@ export function MissionPlanPanel({ onRunStarted }: { onRunStarted?: (runId: stri
   useEffect(() => {
     if (!selectedMission?.activeRunId) { setLinkedRunStatus(null); return }
     let cancelled = false
-    void fetch(`/api/runs/${encodeURIComponent(selectedMission.activeRunId)}`)
-      .then(response => response.ok ? response.json() as Promise<{ status: string }> : null)
-      .then(run => { if (!cancelled) setLinkedRunStatus(run?.status ?? null) })
-      .catch(() => { if (!cancelled) setLinkedRunStatus(null) })
-    return () => { cancelled = true }
+    const loadStatus = async () => {
+      try {
+        const response = await fetch(`/api/runs/${encodeURIComponent(selectedMission.activeRunId!)}`)
+        const run = response.ok ? await response.json() as { status: string } : null
+        if (!cancelled) setLinkedRunStatus(run?.status ?? null)
+      } catch {
+        if (!cancelled) setLinkedRunStatus(null)
+      }
+    }
+    void loadStatus()
+    const timer = window.setInterval(loadStatus, 2500)
+    return () => { cancelled = true; window.clearInterval(timer) }
   }, [selectedMission?.activeRunId])
 
   const markDelivered = async () => {
