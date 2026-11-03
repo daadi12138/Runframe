@@ -22,7 +22,8 @@ const taskTransitions: Record<TaskStatus, readonly TaskStatus[]> = {
 const attemptTransitions: Record<AttemptStatus, readonly AttemptStatus[]> = {
   queued: ['starting', 'cancelled'],
   starting: ['running', 'failed', 'interrupted', 'cancelled'],
-  running: ['succeeded', 'failed', 'interrupted', 'cancelled'],
+  running: ['succeeded', 'failed', 'interrupted', 'cancelled', 'paused'],
+  paused: ['running', 'interrupted', 'cancelled'],
   succeeded: [],
   failed: [],
   interrupted: [],
