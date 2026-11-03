@@ -42,3 +42,16 @@ test('a later denial supersedes an earlier grant without mutating either record'
   assert.equal((await repository.get(grant.id))?.decision, 'granted')
   assert.equal((await repository.get(denial.id))?.decision, 'denied')
 })
+
+test('serializes concurrent decisions for one exact scope in invocation order', async () => {
+  const repository = new MemoryApprovalRepository()
+  let id = 0
+  const service = new ApprovalService(repository, () => new Date('2026-01-01T00:00:00.000Z'), () => `concurrent-${++id}`)
+  const scope = { action: 'git.push', workspaceRoot: '/workspace/concurrent' }
+  await Promise.all([
+    service.decide(scope, 'granted'),
+    service.decide(scope, 'denied'),
+  ])
+  assert.equal((await service.latestDecision(scope))?.decision, 'denied')
+  assert.equal(repository.records.size, 2)
+})
