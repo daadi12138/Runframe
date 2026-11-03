@@ -95,7 +95,8 @@ Recovery invariants:
 ### Phase 1 — event journal and projections
 - [x] Implement filesystem-backed append-only JSONL event storage with schema versioning, per-run writer locking, dead-process lock recovery, torn-tail recovery, sequence validation, replay, idempotency keys, and fsync-before-append completion.
 - [x] Add filesystem persistence for Mission records and immutable, validated Plan revisions.
-- [x] Add unit tests for graph validation, state transitions, Mission/Plan persistence and dispatch, exact-scope approval decisions, runtime registry contracts, event ordering, replay, torn-tail recovery, stale locks, idempotency, and concurrent writers.
+- [x] Add unit tests for graph validation, state transitions, Mission/Plan persistence and dispatch, exact-scope approval decisions (including concurrent decisions), runtime registry contracts, event ordering, replay, torn-tail recovery, stale-lock reclamation races, live-lock safety, idempotency, and concurrent writers.
+- [x] Validate persisted Mission, Plan Revision, and Approval records on replay; corrupt governance or planning data fails closed rather than being silently accepted.
 - [x] Project legacy Run events into a replayable V2 execution timeline; the legacy Run manifest remains the compatibility projection.
 - [x] Integrate journal appends into serialized Run manifest writes so the journal is durable before the manifest revision is committed.
 - [x] Expose a paginated timeline read API and render the persisted event stream in the Mission Hub.
@@ -103,8 +104,9 @@ Recovery invariants:
 
 ### Phase 2 — application services
 - [x] Add MissionService use cases for Mission creation, lifecycle transitions, and validated immutable Plan revisions.
-- [x] Add ApprovalService with exact-scope matching and append-only grant/deny decisions; the latest decision for an exact scope governs authorization.
-- [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate.
+- [x] Add ApprovalService with exact-scope matching, serialized concurrent decisions, and append-only grant/deny records; the latest decision for an exact scope governs authorization.
+- [x] Serialize Mission dispatch requests per Mission within the local application process to prevent duplicate concurrent Runs.
+- [x] Bridge existing validation-command allowlist approvals into immutable V2 audit records and recheck workspace, command, and input digest at the validation execution gate; Worktree-only approvals remain scoped to the executing Worktree.
 - [x] Add Mission and Plan REST APIs, a MissionExecutionService use case, and a MissionRunDispatcher port. The LegacyMissionRunDispatcher converts a saved V2 Plan into an isolated legacy Run / Git Worktree execution without putting orchestration logic in the HTTP route.
 - [ ] Extract scheduler, dependency resolver, policy gate, execution manager, and recovery manager from the current Run manager behind use-case boundaries.
 - [ ] Replace the compatibility dispatcher with capability-aware AgentRuntimeRegistry dispatch.
