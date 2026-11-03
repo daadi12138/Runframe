@@ -25,6 +25,7 @@ test('projects nested session and subprocess lifecycle facts', () => {
   assert.equal(tree.find(item => item.id === 'process')?.parentId, 'session')
   assert.equal(tree.find(item => item.id === 'process')?.exitSignal, 'SIGTERM')
   assert.equal(tree.find(item => item.id === 'session')?.sessionId, 'codex-thread-1')
+  assert.equal(tree.find(item => item.id === 'process')?.sessionId, 'codex-thread-1')
   assert.ok(tree.every(item => item.endedAt))
 })
 
