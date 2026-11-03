@@ -27,6 +27,13 @@ export class MissionExecutionService {
     if (mission.status !== 'planned' && mission.status !== 'review') {
       throw new Error(`Mission must be planned or in review before dispatch (current: ${mission.status}).`)
     }
+    if (mission.activeRunId) {
+      const previousRunStatus = await this.dispatcher.getStatus(mission.activeRunId)
+      if (!previousRunStatus) throw new Error('The Mission references a Run that cannot be found; refusing to start a second execution.')
+      if (!['succeeded', 'failed', 'cancelled'].includes(previousRunStatus)) {
+        throw new Error(`The linked Run is still active or awaiting approval (status: ${previousRunStatus}). Resolve it before starting another execution.`)
+      }
+    }
     const plan = await this.repository.getLatestPlan(missionId)
     if (!plan) throw new Error('Mission has no saved Plan Revision.')
     const graph = validatePlanGraph(plan.nodes)
