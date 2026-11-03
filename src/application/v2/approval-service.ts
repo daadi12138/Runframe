@@ -30,7 +30,9 @@ export class ApprovalService {
   }
 
   async isGranted(scope: ApprovalScope): Promise<boolean> {
-    const approvals = await this.repository.list(scope.workspaceRoot)
-    return approvals.some(approval => approval.decision === 'granted' && sameScope(approval.scope, scope))
+    const matching = (await this.repository.list(scope.workspaceRoot))
+      .filter(approval => sameScope(approval.scope, scope))
+      .sort((left, right) => right.decidedAt.localeCompare(left.decidedAt) || right.id.localeCompare(left.id))
+    return matching[0]?.decision === 'granted'
   }
 }
