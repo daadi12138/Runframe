@@ -27,6 +27,8 @@ class FakeDispatcher implements MissionRunDispatcher {
     this.request = request
     return { runId: 'run-v2-test' }
   }
+  async getStatus(_runId: string) { return this.status ?? null }
+  status: string | null = null
   async cancel(runId: string) { this.cancelled.push(runId) }
 }
 
@@ -57,4 +59,20 @@ test('cancels a newly created run if mission linkage cannot be persisted', async
   const execution = new MissionExecutionService(repository, dispatcher)
   await assert.rejects(() => execution.dispatch(mission.id, { executorId: 'codex', executionMode: 'read_only' }), /disk unavailable/)
   assert.deepEqual(dispatcher.cancelled, ['run-v2-test'])
+})
+
+test('does not start another run while the previous run is awaiting delivery approval', async () => {
+  const repository = new MemoryRepository()
+  const missionService = new MissionService(repository, () => new Date(), () => 'mission-overlap')
+  const mission = await missionService.create({ title: 'Prevent overlap' })
+  await missionService.savePlan(mission.id, [{ id: 'task', title: 'Task', status: 'pending', dependsOn: [] }])
+  await repository.saveMission({ ...mission, status: 'review', activeRunId: 'run-pending-delivery' })
+  const dispatcher = new FakeDispatcher()
+  dispatcher.status = 'awaiting_delivery'
+  const execution = new MissionExecutionService(repository, dispatcher)
+  await assert.rejects(
+    () => execution.dispatch(mission.id, { executorId: 'codex', executionMode: 'read_only' }),
+    /still active or awaiting approval/,
+  )
+  assert.equal(dispatcher.request, undefined)
 })
