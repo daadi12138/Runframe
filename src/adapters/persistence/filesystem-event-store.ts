@@ -92,16 +92,18 @@ export class FilesystemExecutionEventStore implements ExecutionEventStore {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
         try {
           const lockStat = await stat(lockPath)
-          let stale = Date.now() - lockStat.mtimeMs > this.staleLockMs
+          let stale = false
           try {
             const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')) as { pid?: unknown }
             if (Number.isSafeInteger(owner.pid) && typeof owner.pid === 'number') {
               try { process.kill(owner.pid, 0) } catch (ownerError) {
                 if ((ownerError as NodeJS.ErrnoException).code === 'ESRCH') stale = true
               }
+            } else {
+              stale = Date.now() - lockStat.mtimeMs > this.staleLockMs
             }
           } catch (ownerError) {
-            if ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' && Date.now() - lockStat.mtimeMs > 5_000) stale = true
+            if (Date.now() - lockStat.mtimeMs > ((ownerError as NodeJS.ErrnoException).code === 'ENOENT' ? 5_000 : this.staleLockMs)) stale = true
           }
           if (stale) {
             await rm(lockPath, { recursive: true, force: true })
